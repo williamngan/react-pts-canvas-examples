@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  padding: 50px;
+  font-family: sans-serif;
+  text-align: left;
+}
+
+label {  
+  display: block;
+  text-align: left;
+  margin: 10px 0;
+}
+
+input {
+  display: inline-block;
+  padding: 10px;
+}
+
+.pts-chart {
+  width: 400px; height: 400px;
+  display: inline-block;
+}
