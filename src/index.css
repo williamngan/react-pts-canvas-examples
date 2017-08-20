@@ -17,6 +17,6 @@ input {
 }
 
 .pts-chart {
-  width: 400px; height: 400px;
+  width: 50%; height: 300px;
   display: inline-block;
 }

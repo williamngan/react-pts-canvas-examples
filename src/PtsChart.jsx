@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import {CanvasSpace, Pt, Group, Line} from 'pts';
 
 export default class PtsChart extends Component {
+
   
 
   createChart() {
@@ -17,12 +18,12 @@ export default class PtsChart extends Component {
       // Given the data, distribute bars across the space's size
       let w = (this.space.size.x) / this.props.data.length;
       let bars = this.props.data.map( (d,i) => {
-        return new Group( new Pt(i*w, this.space.size.y), new Pt( i*w, this.space.size.y-d*this.space.size.y-2) );
+        return new Group( new Pt(i*w, this.space.size.y), new Pt( i*w, this.space.size.y-d*this.space.size.y-1) );
       });
       
       // Draw a line controlled by mouse pointer
       let line = new Group(new Pt(0, this.space.size.y/2), new Pt( this.space.size.x, this.space.pointer.y ) );
-      this.form.stroke("#fff", 1).line( line, 10, "circle" );
+      this.form.stroke("#fff", 3).line( line, 10, "circle" );
 
       // Draw the bars and also check intersection with the pointer's line
       let intersects = bars.map( (b, i) => {
@@ -31,7 +32,7 @@ export default class PtsChart extends Component {
       });
 
       // Draw intersection points
-      this.form.fillOnly("#f6c").points( intersects, w/3 );
+      this.form.fillOnly("#f6c").points( intersects, w/2 );
       
     }
     
@@ -39,13 +40,21 @@ export default class PtsChart extends Component {
       
       // render
       animate:() => {
-        this.renderChart();
+        if (this.form.ready) this.renderChart();
       },
 
       // Mouse or touch action
       action: (type, x, y) => {
         this.space.clear(); // since we're not animating continuously, manually clear canvas and re-render chart
         this.renderChart();
+      },
+
+      resize: (bound) => {
+        if (this.form.ready) {
+          this.space.clear();
+          this.renderChart();
+        }
+        
       }
     });
     
