@@ -18,5 +18,7 @@ input {
 
 .pts-chart {
   width: 50%; height: 300px;
-  display: inline-block;
+  display: block;
+  float: left;
+  position: relative;
 }

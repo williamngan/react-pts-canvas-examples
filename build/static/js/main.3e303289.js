@@ -22270,15 +22270,20 @@ this.space.playOnce(0);}// Create chart on mount
 /* 181 */
 /***/ (function(module, exports, __webpack_require__) {
 
+/*!
+ * pts.js - Copyright © 2017-2018 William Ngan and contributors.
+ * Licensed under Apache 2.0 License.
+ * See https://github.com/williamngan/pts for details.
+ */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(true)
 		module.exports = factory();
 	else if(typeof define === 'function' && define.amd)
 		define([], factory);
-	else if(typeof exports === 'object')
-		exports["Pts"] = factory();
-	else
-		root["Pts"] = factory();
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
 })(this, function() {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
@@ -22345,7 +22350,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 11);
+/******/ 	return __webpack_require__(__webpack_require__.s = 15);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -22355,11 +22360,11 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
 const Util_1 = __webpack_require__(1);
 const Num_1 = __webpack_require__(3);
-const LinearAlgebra_1 = __webpack_require__(2);
+const LinearAlgebra_1 = __webpack_require__(4);
 exports.PtBaseArray = Float32Array;
 /**
  * Pt is a subclass of Float32Array with additional properties and functions to support vector and geometric calculations.
@@ -22565,6 +22570,11 @@ class Pt extends exports.PtBaseArray {
      * @param args a list of numbers, an array of number, or an object with {x,y,z,w} properties
      */
     dot(...args) { return LinearAlgebra_1.Vec.dot(this, Util_1.Util.getArgs(args)); }
+    /**
+     * 2D Cross product of this Pt and another Pt. Return results as a new Pt.
+     * @param args a list of numbers, an array of number, or an object with {x,y,z,w} properties
+     */
+    cross2D(...args) { return LinearAlgebra_1.Vec.cross2D(this, Util_1.Util.getArgs(args)); }
     /**
      * 3D Cross product of this Pt and another Pt. Return results as a new Pt.
      * @param args a list of numbers, an array of number, or an object with {x,y,z,w} properties
@@ -23059,7 +23069,7 @@ exports.Group = Group;
 "use strict";
 
 // Source code licensed under Apache License 2.0.
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
 const Pt_1 = __webpack_require__(0);
 /**
@@ -23092,6 +23102,10 @@ exports.Const = {
     top_right: 3,
     /* represents an arbitrary very small number. It is set as 0.0001 here. */
     epsilon: 0.0001,
+    /* represents Number.MAX_VALUE */
+    max: Number.MAX_VALUE,
+    /* represents Number.MIN_VALUE */
+    min: Number.MIN_VALUE,
     /* pi radian (180 deg) */
     pi: Math.PI,
     /* two pi radian (360deg) */
@@ -23229,6 +23243,40 @@ class Util {
         }
         return z;
     }
+    /**
+     * Create a convenient stepper. This returns a function which you can call repeatedly to step a counter.
+     * @param max Maximum of the stepper range. The resulting stepper will return (min to max-1) values.
+     * @param min Minimum of the stepper range. Default is 0.
+     * @param stride Stride of the step. Default is 1.
+     * @param callback An optional callback function( step ), which will be called each tiem when stepper function is called.
+     * @example `let counter = stepper(100); let c = counter(); c = counter(); ...`
+     * @returns a function which will increment the stepper and return its value at each call.
+     */
+    static stepper(max, min = 0, stride = 1, callback) {
+        let c = min;
+        return function () {
+            c += stride;
+            if (c >= max) {
+                c = min + (c - max);
+            }
+            if (callback)
+                callback(c);
+            return c;
+        };
+    }
+    /**
+     * A convenient way to step through a range. Same as `for (i=0; i<range; i++)`, except this also stores the resulting return values at each step and return them as an array.
+     * @param range a range to step through
+     * @param fn a callback function(index). If this function returns a value, it will be stored at each step
+     * @returns an array of returned values at each step
+     */
+    static forRange(fn, range, start = 0, step = 1) {
+        let temp = [];
+        for (let i = start, len = range; i < len; i += step) {
+            temp[i] = fn(i);
+        }
+        return temp;
+    }
 }
 Util.warnLevel = "default";
 exports.Util = Util;
@@ -23241,1221 +23289,12 @@ exports.Util = Util;
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
-Object.defineProperty(exports, "__esModule", { value: true });
-const Pt_1 = __webpack_require__(0);
-const Op_1 = __webpack_require__(5);
-/**
- * Vec provides static function for vector operations. It's not yet optimized but good enough to use.
- */
-class Vec {
-    /**
-     * Add b to vector `a`
-     * @returns vector `a`
-     */
-    static add(a, b) {
-        if (typeof b == "number") {
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] += b;
-        }
-        else {
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] += b[i] || 0;
-        }
-        return a;
-    }
-    /**
-     * Subtract `b` from vector `a`
-     * @returns vector `a`
-     */
-    static subtract(a, b) {
-        if (typeof b == "number") {
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] -= b;
-        }
-        else {
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] -= b[i] || 0;
-        }
-        return a;
-    }
-    /**
-     * Multiply `b` with vector `a`
-     * @returns vector `a`
-     */
-    static multiply(a, b) {
-        if (typeof b == "number") {
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] *= b;
-        }
-        else {
-            if (a.length != b.length) {
-                throw new Error(`Cannot do element-wise multiply since the array lengths don't match: ${a.toString()} multiply-with ${b.toString()}`);
-            }
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] *= b[i];
-        }
-        return a;
-    }
-    /**
-     * Divide `a` over `b`
-     * @returns vector `a`
-     */
-    static divide(a, b) {
-        if (typeof b == "number") {
-            if (b === 0)
-                throw new Error("Cannot divide by zero");
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] /= b;
-        }
-        else {
-            if (a.length != b.length) {
-                throw new Error(`Cannot do element-wise divide since the array lengths don't match. ${a.toString()} divide-by ${b.toString()}`);
-            }
-            for (let i = 0, len = a.length; i < len; i++)
-                a[i] /= b[i];
-        }
-        return a;
-    }
-    /**
-     * Dot product of `a` and `b`
-     */
-    static dot(a, b) {
-        if (a.length != b.length)
-            throw new Error("Array lengths don't match");
-        let d = 0;
-        for (let i = 0, len = a.length; i < len; i++) {
-            d += a[i] * b[i];
-        }
-        return d;
-    }
-    /**
-     * Cross product of `a` and `b` (3D only)
-     */
-    static cross(a, b) {
-        return new Pt_1.Pt((a[1] * b[2] - a[2] * b[1]), (a[2] * b[0] - a[0] * b[2]), (a[0] * b[1] - a[1] * b[0]));
-    }
-    /**
-     * Magnitude of `a`
-     */
-    static magnitude(a) {
-        return Math.sqrt(Vec.dot(a, a));
-    }
-    /**
-     * Unit vector of `a`. If magnitude of `a` is already known, pass it in the second paramter to optimize calculation.
-     */
-    static unit(a, magnitude = undefined) {
-        let m = (magnitude === undefined) ? Vec.magnitude(a) : magnitude;
-        if (m === 0)
-            throw new Error("Cannot calculate unit vector because magnitude is 0");
-        return Vec.divide(a, m);
-    }
-    /**
-     * Set `a` to its absolute value in each dimension
-     * @returns vector `a`
-     */
-    static abs(a) {
-        return Vec.map(a, Math.abs);
-    }
-    /**
-     * Set `a` to its floor value in each dimension
-     * @returns vector `a`
-     */
-    static floor(a) {
-        return Vec.map(a, Math.floor);
-    }
-    /**
-     * Set `a` to its ceiling value in each dimension
-     * @returns vector `a`
-     */
-    static ceil(a) {
-        return Vec.map(a, Math.ceil);
-    }
-    /**
-     * Set `a` to its rounded value in each dimension
-     * @returns vector `a`
-     */
-    static round(a) {
-        return Vec.map(a, Math.round);
-    }
-    /**
-     * Find the max value within a vector's dimensions
-     * @returns an object with `value` and `index` that specifies the max value and its corresponding dimension.
-     */
-    static max(a) {
-        let m = Number.MIN_VALUE;
-        let index = 0;
-        for (let i = 0, len = a.length; i < len; i++) {
-            m = Math.max(m, a[i]);
-            if (m === a[i])
-                index = i;
-        }
-        return { value: m, index: index };
-    }
-    /**
-     * Find the min value within a vector's dimensions
-     * @returns an object with `value` and `index` that specifies the min value and its corresponding dimension.
-     */
-    static min(a) {
-        let m = Number.MAX_VALUE;
-        let index = 0;
-        for (let i = 0, len = a.length; i < len; i++) {
-            m = Math.min(m, a[i]);
-            if (m === a[i])
-                index = i;
-        }
-        return { value: m, index: index };
-    }
-    /**
-     * Sum all the dimensions' values
-     */
-    static sum(a) {
-        let s = 0;
-        for (let i = 0, len = a.length; i < len; i++)
-            s += a[i];
-        return s;
-    }
-    /**
-     * Given a mapping function, update `a`'s value in each dimension
-     * @returns vector `a`
-     */
-    static map(a, fn) {
-        for (let i = 0, len = a.length; i < len; i++) {
-            a[i] = fn(a[i], i, a);
-        }
-        return a;
-    }
-}
-exports.Vec = Vec;
-/**
- * Mat provides static function for matrix operations. It's not yet optimized but good enough to use.
- */
-class Mat {
-    /**
-     * Matrix additions. Matrices should have the same rows and columns.
-     * @param a a group of Pt
-     * @param b a scalar number, an array of numeric arrays, or a group of Pt
-     * @returns a group with the same rows and columns as a and b
-     */
-    static add(a, b) {
-        if (typeof b != "number") {
-            if (a[0].length != b[0].length)
-                throw new Error("Cannot add matrix if rows' and columns' size don't match.");
-            if (a.length != b.length)
-                throw new Error("Cannot add matrix if rows' and columns' size don't match.");
-        }
-        let g = new Pt_1.Group();
-        let isNum = typeof b == "number";
-        for (let i = 0, len = a.length; i < len; i++) {
-            g.push(a[i].$add((isNum) ? b : b[i]));
-        }
-        return g;
-    }
-    /**
-     * Matrix multiplication
-     * @param a a Group of M Pts, each with K dimensions (M-rows, K-columns)
-     * @param b a scalar number, an array of numeric arrays, or a Group of K Pts, each with N dimensions (K-rows, N-columns) -- or if transposed is true, then N Pts with K dimensions
-     * @param transposed (Only applicable if it's not elementwise multiplication) If true, then a and b's columns should match (ie, each Pt should have the same dimensions). Default is `false`.
-     * @param elementwise if true, then the multiplication is done element-wise. Default is `false`.
-     * @returns If not elementwise, this will return a group with M Pt, each with N dimensions (M-rows, N-columns).
-     */
-    static multiply(a, b, transposed = false, elementwise = false) {
-        let g = new Pt_1.Group();
-        if (typeof b != "number") {
-            if (elementwise) {
-                if (a.length != b.length)
-                    throw new Error("Cannot multiply matrix element-wise because the matrices' sizes don't match.");
-                for (let ai = 0, alen = a.length; ai < alen; ai++) {
-                    g.push(a[ai].$multiply(b[ai]));
-                }
-            }
-            else {
-                if (!transposed && a[0].length != b.length)
-                    throw new Error("Cannot multiply matrix if rows in matrix-a don't match columns in matrix-b.");
-                if (transposed && a[0].length != b[0].length)
-                    throw new Error("Cannot multiply matrix if transposed and the columns in both matrices don't match.");
-                if (!transposed)
-                    b = Mat.transpose(b);
-                for (let ai = 0, alen = a.length; ai < alen; ai++) {
-                    let p = Pt_1.Pt.make(b.length, 0);
-                    for (let bi = 0, blen = b.length; bi < blen; bi++) {
-                        p[bi] = Vec.dot(a[ai], b[bi]);
-                    }
-                    g.push(p);
-                }
-            }
-        }
-        else {
-            for (let ai = 0, alen = a.length; ai < alen; ai++) {
-                g.push(a[ai].$multiply(b));
-            }
-        }
-        return g;
-    }
-    /**
-     * Zip one slice of an array of Pt. Imagine the Pts are organized in rows, then this function will take the values in a specific column.
-     * @param g a group of Pt
-     * @param idx index to zip at
-     * @param defaultValue a default value to fill if index out of bound. If not provided, it will throw an error instead.
-     */
-    static zipSlice(g, index, defaultValue = false) {
-        let z = [];
-        for (let i = 0, len = g.length; i < len; i++) {
-            if (g[i].length - 1 < index && defaultValue === false)
-                throw `Index ${index} is out of bounds`;
-            z.push(g[i][index] || defaultValue);
-        }
-        return new Pt_1.Pt(z);
-    }
-    /**
-     * Zip a group of Pt. eg, [[1,2],[3,4],[5,6]] => [[1,3,5],[2,4,6]]
-     * @param g a group of Pt
-     * @param defaultValue a default value to fill if index out of bound. If not provided, it will throw an error instead.
-     * @param useLongest If true, find the longest list of values in a Pt and use its length for zipping. Default is false, which uses the first item's length for zipping.
-     */
-    static zip(g, defaultValue = false, useLongest = false) {
-        let ps = new Pt_1.Group();
-        let len = (useLongest) ? g.reduce((a, b) => Math.max(a, b.length), 0) : g[0].length;
-        for (let i = 0; i < len; i++) {
-            ps.push(Mat.zipSlice(g, i, defaultValue));
-        }
-        return ps;
-    }
-    /**
-     * Same as `zip` function
-     */
-    static transpose(g, defaultValue = false, useLongest = false) {
-        return Mat.zip(g, defaultValue, useLongest);
-    }
-    /**
-     * Transform a 2D point given a 2x3 or 3x3 matrix
-     * @param pt a Pt to be transformed
-     * @param m 2x3 or 3x3 matrix
-     * @returns a new transformed Pt
-     */
-    static transform2D(pt, m) {
-        let x = pt[0] * m[0][0] + pt[1] * m[1][0] + m[2][0];
-        let y = pt[0] * m[0][1] + pt[1] * m[1][1] + m[2][1];
-        return new Pt_1.Pt(x, y);
-    }
-    /**
-     * Get a scale matrix for use in `transform2D`
-     */
-    static scale2DMatrix(x, y) {
-        return new Pt_1.Group(new Pt_1.Pt(x, 0, 0), new Pt_1.Pt(0, y, 0), new Pt_1.Pt(0, 0, 1));
-    }
-    /**
-     * Get a rotate matrix for use in `transform2D`
-     */
-    static rotate2DMatrix(cosA, sinA) {
-        return new Pt_1.Group(new Pt_1.Pt(cosA, sinA, 0), new Pt_1.Pt(-sinA, cosA, 0), new Pt_1.Pt(0, 0, 1));
-    }
-    /**
-     * Get a shear matrix for use in `transform2D`
-     */
-    static shear2DMatrix(tanX, tanY) {
-        return new Pt_1.Group(new Pt_1.Pt(1, tanX, 0), new Pt_1.Pt(tanY, 1, 0), new Pt_1.Pt(0, 0, 1));
-    }
-    /**
-     * Get a translate matrix for use in `transform2D`
-     */
-    static translate2DMatrix(x, y) {
-        return new Pt_1.Group(new Pt_1.Pt(1, 0, 0), new Pt_1.Pt(0, 1, 0), new Pt_1.Pt(x, y, 1));
-    }
-    /**
-     * Get a matrix to scale a point from an origin point. For use in `transform2D`
-     */
-    static scaleAt2DMatrix(sx, sy, at) {
-        let m = Mat.scale2DMatrix(sx, sy);
-        m[2][0] = -at[0] * sx + at[0];
-        m[2][1] = -at[1] * sy + at[1];
-        return m;
-    }
-    /**
-     * Get a matrix to rotate a point from an origin point. For use in `transform2D`
-     */
-    static rotateAt2DMatrix(cosA, sinA, at) {
-        let m = Mat.rotate2DMatrix(cosA, sinA);
-        m[2][0] = at[0] * (1 - cosA) + at[1] * sinA;
-        m[2][1] = at[1] * (1 - cosA) - at[0] * sinA;
-        return m;
-    }
-    /**
-     * Get a matrix to shear a point from an origin point. For use in `transform2D`
-     */
-    static shearAt2DMatrix(tanX, tanY, at) {
-        let m = Mat.shear2DMatrix(tanX, tanY);
-        m[2][0] = -at[1] * tanY;
-        m[2][1] = -at[0] * tanX;
-        return m;
-    }
-    /**
-     * Get a matrix to reflect a point along a line. For use in `transform2D`
-     * @param p1 first end point to define the reflection line
-     * @param p1 second end point to define the reflection line
-     */
-    static reflectAt2DMatrix(p1, p2) {
-        let intercept = Op_1.Line.intercept(p1, p2);
-        if (intercept == undefined) {
-            return [
-                new Pt_1.Pt([-1, 0, 0]),
-                new Pt_1.Pt([0, 1, 0]),
-                new Pt_1.Pt([p1[0] + p2[0], 0, 1])
-            ];
-        }
-        else {
-            let yi = intercept.yi;
-            let ang2 = Math.atan(intercept.slope) * 2;
-            let cosA = Math.cos(ang2);
-            let sinA = Math.sin(ang2);
-            return [
-                new Pt_1.Pt([cosA, sinA, 0]),
-                new Pt_1.Pt([sinA, -cosA, 0]),
-                new Pt_1.Pt([-yi * sinA, yi + yi * cosA, 1])
-            ];
-        }
-    }
-}
-exports.Mat = Mat;
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-// Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
-Object.defineProperty(exports, "__esModule", { value: true });
-const Util_1 = __webpack_require__(1);
-const Op_1 = __webpack_require__(5);
-const Pt_1 = __webpack_require__(0);
-const LinearAlgebra_1 = __webpack_require__(2);
-/**
- * Num class provides various helper functions for basic numeric operations
- */
-class Num {
-    /**
-     * Check if two numbers are equal or almost equal within a threshold
-     * @param a number a
-     * @param b number b
-     * @param threshold a threshold within which the two numbers are considered equal
-     */
-    static equals(a, b, threshold = 0.00001) {
-        return Math.abs(a - b) < threshold;
-    }
-    /**
-     * Linear interpolation
-     * @param a start value
-     * @param b end value
-     * @param t usually a value between 0 to 1
-     */
-    static lerp(a, b, t) {
-        return (1 - t) * a + t * b;
-    }
-    /**
-     * Clamp values between min and max
-     * @param val value to clamp
-     * @param min min value
-     * @param max max value
-     */
-    static clamp(val, min, max) {
-        return Math.max(min, Math.min(max, val));
-    }
-    /**
-     * Different from Num.clamp in that the value out-of-bound will be "looped back" to the other end.
-     * @param val value to bound
-     * @param min min value
-     * @param max max value
-     * @example `boundValue(361, 0, 360)` will return 1
-     */
-    static boundValue(val, min, max) {
-        let len = Math.abs(max - min);
-        let a = val % len;
-        if (a > max)
-            a -= len;
-        else if (a < min)
-            a += len;
-        return a;
-    }
-    /**
-     * Check if a value is within
-     * @param p
-     * @param a
-     * @param b
-     */
-    static within(p, a, b) {
-        return p >= Math.min(a, b) && p <= Math.max(a, b);
-    }
-    /**
-     * Get a random number within a range
-     * @param a range value 1
-     * @param b range value 2
-     */
-    static randomRange(a, b = 0) {
-        let r = (a > b) ? (a - b) : (b - a);
-        return a + Math.random() * r;
-    }
-    /**
-     * Normalize a value within a range
-     * @param n the value to normalize
-     * @param a range value 1
-     * @param b range value 1
-     */
-    static normalizeValue(n, a, b) {
-        let min = Math.min(a, b);
-        let max = Math.max(a, b);
-        return (n - min) / (max - min);
-    }
-    /**
-     * Sum a group of numeric arrays
-     * @param pts an array of numeric arrays
-     * @returns a array of sums
-     */
-    static sum(pts) {
-        let c = new Pt_1.Pt(pts[0]);
-        for (let i = 1, len = pts.length; i < len; i++) {
-            LinearAlgebra_1.Vec.add(c, pts[i]);
-        }
-        return c;
-    }
-    /**
-     * Sum a group of numeric arrays
-     * @param pts an array of numeric arrays
-     * @returns a array of sums
-     */
-    static average(pts) {
-        return Num.sum(pts).divide(pts.length);
-    }
-    /**
-     * Given a value between 0 to 1, returns a value that cycles between 0 -> 1 -> 0 using sine method.
-     * @param t a value between 0 to 1
-     * @return a value between 0 to 1
-     */
-    static cycle(t) {
-        return (Math.sin(Math.PI * 2 * t) + 1) / 2;
-    }
-    /**
-     * Map a value from one range to another
-     * @param n a value in the first range
-     * @param currMin lower bound of the first range
-     * @param currMax upper bound of the first range
-     * @param targetMin lower bound of the second range
-     * @param targetMax upper bound of the second range
-     * @returns a remapped value in the second range
-     */
-    static mapToRange(n, currA, currB, targetA, targetB) {
-        if (currA == currB)
-            throw new Error("[currMin, currMax] must define a range that is not zero");
-        let min = Math.min(targetA, targetB);
-        let max = Math.max(targetA, targetB);
-        return Num.normalizeValue(n, currA, currB) * (max - min) + min;
-    }
-}
-exports.Num = Num;
-/**
- * Geom class provides various helper functions for basic geometric operations
- */
-class Geom {
-    /**
-     * Bound an angle between 0 to 360 degrees
-     */
-    static boundAngle(angle) {
-        return Num.boundValue(angle, 0, 360);
-    }
-    /**
-     * Bound a radian between 0 to 2-PI
-     */
-    static boundRadian(angle) {
-        return Num.boundValue(angle, 0, Util_1.Const.two_pi);
-    }
-    /**
-     * Convert an angle in degree to radian
-     */
-    static toRadian(angle) {
-        return angle * Util_1.Const.deg_to_rad;
-    }
-    /**
-     * Convert an angle in radian to degree
-     */
-    static toDegree(radian) {
-        return radian * Util_1.Const.rad_to_deg;
-    }
-    /**
-     * Get a bounding box for a set of Pts
-     * @param pts a Group or an array of Pts
-     * @return a Group of two Pts, representing the top-left and bottom-right corners.
-     */
-    static boundingBox(pts) {
-        let minPt = pts.reduce((a, p) => a.$min(p));
-        let maxPt = pts.reduce((a, p) => a.$max(p));
-        return new Pt_1.Group(minPt, maxPt);
-    }
-    /**
-     * Get a centroid (the average middle point) for a set of Pts
-     * @param pts a Group or an array of Pts
-     * @return a centroid Pt
-     */
-    static centroid(pts) {
-        return Num.average(pts);
-    }
-    /**
-     * Given an anchor Pt, rebase all Pts in this group either to or from this anchor base.
-     * @param pts a Group or array of Pt
-     * @param ptOrIndex an index for the Pt array, or an external Pt
-     * @param direction "to" (subtract all Pt with this anchor base) or "from" (add all Pt from this anchor base)
-     */
-    static anchor(pts, ptOrIndex = 0, direction = "to") {
-        let method = (direction == "to") ? "subtract" : "add";
-        for (let i = 0, len = pts.length; i < len; i++) {
-            if (typeof ptOrIndex == "number") {
-                if (ptOrIndex !== i)
-                    pts[i][method](pts[ptOrIndex]);
-            }
-            else {
-                pts[i][method](ptOrIndex);
-            }
-        }
-    }
-    /**
-     * Get an interpolated (or extrapolated) value between two Pts
-     * @param a first Pt
-     * @param b second Pt
-     * @param t a value between 0 to 1 to interpolate, or any other value to extrapolate
-     * @returns interpolated point as a new Pt
-     */
-    static interpolate(a, b, t = 0.5) {
-        let len = Math.min(a.length, b.length);
-        let d = Pt_1.Pt.make(len);
-        for (let i = 0; i < len; i++) {
-            d[i] = a[i] * (1 - t) + b[i] * t;
-        }
-        return d;
-    }
-    /**
-     * Find two Pt that are perpendicular to this Pt (2D)
-     * @param axis a string such as "xy" (use Const.xy) or an array to specify index for two dimensions
-     * @returns an array of two Pt that are perpendicular to this Pt
-     */
-    static perpendicular(pt, axis = Util_1.Const.xy) {
-        let y = axis[1];
-        let x = axis[0];
-        let p = new Pt_1.Pt(pt);
-        let pa = new Pt_1.Pt(p);
-        pa[x] = -p[y];
-        pa[y] = p[x];
-        let pb = new Pt_1.Pt(p);
-        pb[x] = p[y];
-        pb[y] = -p[x];
-        return new Pt_1.Group(pa, pb);
-    }
-    /**
-     * Check if two Pts (vectors) are perpendicular to each other
-     */
-    static isPerpendicular(p1, p2) {
-        return new Pt_1.Pt(p1).dot(p2) === 0;
-    }
-    /**
-     * Check if a Pt is within the rectangular boundary defined by two Pts
-     * @param pt the Pt to check
-     * @param boundPt1 boundary Pt 1
-     * @param boundPt2 boundary Pt 2
-     */
-    static withinBound(pt, boundPt1, boundPt2) {
-        for (let i = 0, len = Math.min(pt.length, boundPt1.length, boundPt2.length); i < len; i++) {
-            if (!Num.within(pt[i], boundPt1[i], boundPt2[i]))
-                return false;
-        }
-        return true;
-    }
-    /**
-     * Scale a Pt or a Group of Pts
-     * @param ps a Pt or a Group of Pts
-     * @param scale scale value
-     * @param anchor optional anchor point to scale from
-     */
-    static scale(ps, scale, anchor) {
-        let pts = (!Array.isArray(ps)) ? [ps] : ps;
-        let scs = (typeof scale == "number") ? Pt_1.Pt.make(pts[0].length, scale) : scale;
-        if (!anchor)
-            anchor = Pt_1.Pt.make(pts[0].length, 0);
-        for (let i = 0, len = pts.length; i < len; i++) {
-            let p = pts[i];
-            for (let k = 0, lenP = p.length; k < lenP; k++) {
-                p[k] = (anchor && anchor[k]) ? anchor[k] + (p[k] - anchor[k]) * scs[k] : p[k] * scs[k];
-            }
-        }
-        return Geom;
-    }
-    /**
-     * Rotate a Pt or a Group of Pts in 2D space
-     * @param ps a Pt or a Group of Pts
-     * @param angle rotate angle
-     * @param anchor optional anchor point to rotate from
-     * @param axis optional axis such as "yz" to define a 2D plane of rotation
-     */
-    static rotate2D(ps, angle, anchor, axis) {
-        let pts = (!Array.isArray(ps)) ? [ps] : ps;
-        let fn = (anchor) ? LinearAlgebra_1.Mat.rotateAt2DMatrix : LinearAlgebra_1.Mat.rotate2DMatrix;
-        if (!anchor)
-            anchor = Pt_1.Pt.make(pts[0].length, 0);
-        let cos = Math.cos(angle);
-        let sin = Math.sin(angle);
-        for (let i = 0, len = pts.length; i < len; i++) {
-            let p = (axis) ? pts[i].$take(axis) : pts[i];
-            p.to(LinearAlgebra_1.Mat.transform2D(p, fn(cos, sin, anchor)));
-        }
-        return Geom;
-    }
-    /**
-     * Shear a Pt or a Group of Pts in 2D space
-     * @param ps a Pt or a Group of Pts
-     * @param scale shearing value which can be a number or an array of 2 numbers
-     * @param anchor optional anchor point to shear from
-     * @param axis optional axis such as "yz" to define a 2D plane of shearing
-     */
-    static shear2D(ps, scale, anchor, axis) {
-        let pts = (!Array.isArray(ps)) ? [ps] : ps;
-        let s = (typeof scale == "number") ? [scale, scale] : scale;
-        if (!anchor)
-            anchor = Pt_1.Pt.make(pts[0].length, 0);
-        let fn = (anchor) ? LinearAlgebra_1.Mat.shearAt2DMatrix : LinearAlgebra_1.Mat.shear2DMatrix;
-        let tanx = Math.tan(s[0]);
-        let tany = Math.tan(s[1]);
-        for (let i = 0, len = pts.length; i < len; i++) {
-            let p = (axis) ? pts[i].$take(axis) : pts[i];
-            p.to(LinearAlgebra_1.Mat.transform2D(p, fn(tanx, tany, anchor)));
-        }
-        return Geom;
-    }
-    /**
-     * Reflect a Pt or a Group of Pts along a 2D line
-     * @param ps a Pt or a Group of Pts
-     * @param line a Group of 2 Pts that defines a line for reflection
-     * @param axis optional axis such as "yz" to define a 2D plane of reflection
-     */
-    static reflect2D(ps, line, axis) {
-        let pts = (!Array.isArray(ps)) ? [ps] : ps;
-        for (let i = 0, len = pts.length; i < len; i++) {
-            let p = (axis) ? pts[i].$take(axis) : pts[i];
-            p.to(LinearAlgebra_1.Mat.transform2D(p, LinearAlgebra_1.Mat.reflectAt2DMatrix(line[0], line[1])));
-        }
-        return Geom;
-    }
-    /**
-     * Generate a sine and cosine lookup table
-     * @returns an object with 2 tables (array of 360 values) and 2 functions to get sin/cos given a radian parameter. { sinTable:Float64Array, cosTable:Float64Array, sin:(rad)=>number, cos:(rad)=>number }
-     */
-    static cosTable() {
-        let cos = new Float64Array(360);
-        for (let i = 0; i < 360; i++)
-            cos[i] = Math.cos(i * Math.PI / 180);
-        let find = (rad) => cos[Math.floor(Geom.boundAngle(Geom.toDegree(rad)))];
-        return { table: cos, cos: find };
-    }
-    /**
-     * Generate a sine and cosine lookup table
-     * @returns an object with 2 tables (array of 360 values) and 2 functions to get sin/cos given a radian parameter. { sinTable:Float64Array, cosTable:Float64Array, sin:(rad)=>number, cos:(rad)=>number }
-     */
-    static sinTable() {
-        let sin = new Float64Array(360);
-        for (let i = 0; i < 360; i++)
-            sin[i] = Math.sin(i * Math.PI / 180);
-        let find = (rad) => sin[Math.floor(Geom.boundAngle(Geom.toDegree(rad)))];
-        return { table: sin, sin: find };
-    }
-}
-exports.Geom = Geom;
-/**
- * Shaping provides various shaping/easing functions to interpolate a value non-linearly.
- */
-class Shaping {
-    /**
-     * Linear mapping
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static linear(t, c = 1) {
-        return c * t;
-    }
-    /**
-     * Quadratic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-    */
-    static quadraticIn(t, c = 1) {
-        return c * t * t;
-    }
-    /**
-     * Quadratic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-    */
-    static quadraticOut(t, c = 1) {
-        return -c * t * (t - 2);
-    }
-    /**
-     * Quadratic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static quadraticInOut(t, c = 1) {
-        let dt = t * 2;
-        return (t < 0.5) ? c / 2 * t * t * 4 : -c / 2 * ((dt - 1) * (dt - 3) - 1);
-    }
-    /**
-     * Cubic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static cubicIn(t, c = 1) {
-        return c * t * t * t;
-    }
-    /**
-     * Cubic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static cubicOut(t, c = 1) {
-        let dt = t - 1;
-        return c * (dt * dt * dt + 1);
-    }
-    /**
-     * Cubic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static cubicInOut(t, c = 1) {
-        let dt = t * 2;
-        return (t < 0.5) ? c / 2 * dt * dt * dt : c / 2 * ((dt - 2) * (dt - 2) * (dt - 2) + 2);
-    }
-    /**
-     * Exponential ease In, adapted from Golan Levin's [polynomial shapers](http://www.flong.com/texts/code/shapers_poly/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p a value between 0 to 1 to control the curve. Default is 0.25.
-     */
-    static exponentialIn(t, c = 1, p = 0.25) {
-        return c * Math.pow(t, 1 / p);
-    }
-    /**
-     * Exponential ease out, adapted from Golan Levin's [polynomial shapers](http://www.flong.com/texts/code/shapers_poly/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p a value between 0 to 1 to control the curve. Default is 0.25.
-     */
-    static exponentialOut(t, c = 1, p = 0.25) {
-        return c * Math.pow(t, p);
-    }
-    /**
-     * Sinuous in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static sineIn(t, c = 1) {
-        return -c * Math.cos(t * Util_1.Const.half_pi) + c;
-    }
-    /**
-     * Sinuous out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static sineOut(t, c = 1) {
-        return c * Math.sin(t * Util_1.Const.half_pi);
-    }
-    /**
-     * Sinuous in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static sineInOut(t, c = 1) {
-        return -c / 2 * (Math.cos(Math.PI * t) - 1);
-    }
-    /**
-     * A faster way to approximate cosine ease in-out using Blinn-Wyvill Approximation. Adapated from Golan Levin's [polynomial shaping](http://www.flong.com/texts/code/shapers_poly/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static cosineApprox(t, c = 1) {
-        let t2 = t * t;
-        let t4 = t2 * t2;
-        let t6 = t4 * t2;
-        return c * (4 * t6 / 9 - 17 * t4 / 9 + 22 * t2 / 9);
-    }
-    /**
-     * Circular in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static circularIn(t, c = 1) {
-        return -c * (Math.sqrt(1 - t * t) - 1);
-    }
-    /**
-     * Circular out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static circularOut(t, c = 1) {
-        let dt = t - 1;
-        return c * Math.sqrt(1 - dt * dt);
-    }
-    /**
-     * Circular in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static circularInOut(t, c = 1) {
-        let dt = t * 2;
-        return (t < 0.5) ? -c / 2 * (Math.sqrt(1 - dt * dt) - 1) : c / 2 * (Math.sqrt(1 - (dt - 2) * (dt - 2)) + 1);
-    }
-    /**
-     * Elastic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.7.
-     */
-    static elasticIn(t, c = 1, p = 0.7) {
-        let dt = t - 1;
-        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
-        return c * (-Math.pow(2, 10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p));
-    }
-    /**
-     * Elastic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.7.
-     */
-    static elasticOut(t, c = 1, p = 0.7) {
-        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
-        return c * (Math.pow(2, -10 * t) * Math.sin((t - s) * Util_1.Const.two_pi / p)) + c;
-    }
-    /**
-     * Elastic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.6.
-     */
-    static elasticInOut(t, c = 1, p = 0.6) {
-        let dt = t * 2;
-        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
-        if (t < 0.5) {
-            dt -= 1;
-            return c * (-0.5 * (Math.pow(2, 10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p)));
-        }
-        else {
-            dt -= 1;
-            return c * (0.5 * (Math.pow(2, -10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p))) + c;
-        }
-    }
-    /**
-     * Bounce in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static bounceIn(t, c = 1) {
-        return c - Shaping.bounceOut((1 - t), c);
-    }
-    /**
-     * Bounce out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static bounceOut(t, c = 1) {
-        if (t < (1 / 2.75)) {
-            return c * (7.5625 * t * t);
-        }
-        else if (t < (2 / 2.75)) {
-            t -= 1.5 / 2.75;
-            return c * (7.5625 * t * t + 0.75);
-        }
-        else if (t < (2.5 / 2.75)) {
-            t -= 2.25 / 2.75;
-            return c * (7.5625 * t * t + 0.9375);
-        }
-        else {
-            t -= 2.625 / 2.75;
-            return c * (7.5625 * t * t + 0.984375);
-        }
-    }
-    /**
-     * Bounce in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     */
-    static bounceInOut(t, c = 1) {
-        return (t < 0.5) ? Shaping.bounceIn(t * 2, c) / 2 : Shaping.bounceOut(t * 2 - 1, c) / 2 + c / 2;
-    }
-    /**
-     * Sigmoid curve changes its shape adapted from the input value, but always returns a value between 0 to 1.
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p the larger the value, the "steeper" the curve will be. Default is 10.
-     */
-    static sigmoid(t, c = 1, p = 10) {
-        let d = p * (t - 0.5);
-        return c / (1 + Math.exp(-d));
-    }
-    /**
-     * The Logistic Sigmoid is a useful curve. Adapted from Golan Levin's [shaping function](http://www.flong.com/texts/code/shapers_exp/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p a parameter between 0 to 1 to control the steepness of the curve. Higher is steeper. Default is 0.7.
-     */
-    static logSigmoid(t, c = 1, p = 0.7) {
-        p = Math.max(Util_1.Const.epsilon, Math.min(1 - Util_1.Const.epsilon, p));
-        p = 1 / (1 - p);
-        let A = 1 / (1 + Math.exp(((t - 0.5) * p * -2)));
-        let B = 1 / (1 + Math.exp(p));
-        let C = 1 / (1 + Math.exp(-p));
-        return c * (A - B) / (C - B);
-    }
-    /**
-     * An exponential seat curve. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_exp/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p a parameter between 0 to 1 to control the steepness of the curve. Higher is steeper. Default is 0.5.
-     */
-    static seat(t, c = 1, p = 0.5) {
-        if ((t < 0.5)) {
-            return c * (Math.pow(2 * t, 1 - p)) / 2;
-        }
-        else {
-            return c * (1 - (Math.pow(2 * (1 - t), 1 - p)) / 2);
-        }
-    }
-    /**
-     * Quadratic bezier curve. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_exp/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p1 a Pt object specifying the first control Pt, or a value specifying the control Pt's x position (its y position will default to 0.5). Default is `Pt(0.95, 0.95)
-     */
-    static quadraticBezier(t, c = 1, p = [0.05, 0.95]) {
-        let a = (typeof p != "number") ? p[0] : p;
-        let b = (typeof p != "number") ? p[1] : 0.5;
-        let om2a = 1 - 2 * a;
-        if (om2a === 0) {
-            om2a = Util_1.Const.epsilon;
-        }
-        let d = (Math.sqrt(a * a + om2a * t) - a) / om2a;
-        return c * ((1 - 2 * b) * (d * d) + (2 * b) * d);
-    }
-    /**
-     * Cubic bezier curve. This reuses the bezier functions in Curve class.
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p1` a Pt object specifying the first control Pt. Default is `Pt(0.1, 0.7).
-     * @parma p2` a Pt object specifying the second control Pt. Default is `Pt(0.9, 0.2).
-     */
-    static cubicBezier(t, c = 1, p1 = [0.1, 0.7], p2 = [0.9, 0.2]) {
-        let curve = new Pt_1.Group(new Pt_1.Pt(0, 0), new Pt_1.Pt(p1), new Pt_1.Pt(p2), new Pt_1.Pt(1, 1));
-        return c * Op_1.Curve.bezierStep(new Pt_1.Pt(t * t * t, t * t, t, 1), Op_1.Curve.controlPoints(curve)).y;
-    }
-    /**
-     * Give a Pt, draw a quadratic curve that will pass through that Pt as closely as possible. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_poly/)
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p1` a Pt object specifying the Pt to pass through. Default is `Pt(0.2, 0.35)
-     */
-    static quadraticTarget(t, c = 1, p1 = [0.2, 0.35]) {
-        let a = Math.min(1 - Util_1.Const.epsilon, Math.max(Util_1.Const.epsilon, p1[0]));
-        let b = Math.min(1, Math.max(0, p1[1]));
-        let A = (1 - b) / (1 - a) - (b / a);
-        let B = (A * (a * a) - b) / a;
-        let y = A * (t * t) - B * t;
-        return c * Math.min(1, Math.max(0, y));
-    }
-    /**
-     * Step function is a simple jump from 0 to 1 at a specific Pt in time
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma p usually a value between 0 to 1, which specify the Pt to "jump". Default is 0.5 which is in the middle.
-     */
-    static cliff(t, c = 1, p = 0.5) {
-        return (t > p) ? c : 0;
-    }
-    /**
-     * Convert any shaping functions into a series of steps
-     * @parma fn the original shaping function
-     * @parma steps the number of steps
-     * @parma t a value between 0 to 1
-     * @parma c the value to shape, default is 1
-     * @parma args optional paramters to pass to original function
-     */
-    static step(fn, steps, t, c, ...args) {
-        let s = 1 / steps;
-        let tt = Math.floor(t / s) * s;
-        return fn(tt, c, ...args);
-    }
-}
-exports.Shaping = Shaping;
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-// Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
-Object.defineProperty(exports, "__esModule", { value: true });
-const Pt_1 = __webpack_require__(0);
-/**
- * Bound is a subclass of Group that represents a rectangular boundary.
- * It includes some convenient properties such as `x`, `y`, bottomRight`, `center`, and `size`.
- */
-class Bound extends Pt_1.Group {
-    /**
-     * Create a Bound. This is similar to the Group constructor.
-     * @param args a list of Pt as parameters
-     */
-    constructor(...args) {
-        super(...args);
-        this._center = new Pt_1.Pt();
-        this._size = new Pt_1.Pt();
-        this._topLeft = new Pt_1.Pt();
-        this._bottomRight = new Pt_1.Pt();
-        this._inited = false;
-        this.init();
-    }
-    /**
-     * Create a Bound from a [ClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) object.
-     * @param rect an object has top/left/bottom/right/width/height properties
-     * @returns a Bound object
-     */
-    static fromBoundingRect(rect) {
-        let b = new Bound(new Pt_1.Pt(rect.left || 0, rect.top || 0), new Pt_1.Pt(rect.right || 0, rect.bottom || 0));
-        if (rect.width && rect.height)
-            b.size = new Pt_1.Pt(rect.width, rect.height);
-        return b;
-    }
-    /**
-     * Initiate the bound's properties.
-     */
-    init() {
-        if (this.p1) {
-            this._size = this.p1.clone();
-            this._inited = true;
-        }
-        if (this.p1 && this.p2) {
-            let a = this.p1;
-            let b = this.p2;
-            this.topLeft = a.$min(b);
-            this._bottomRight = a.$max(b);
-            this._updateSize();
-            this._inited = true;
-        }
-    }
-    /**
-     * Clone this bound and return a new one
-     */
-    clone() {
-        return new Bound(this._topLeft.clone(), this._bottomRight.clone());
-    }
-    /**
-     * Recalculte size and center
-     */
-    _updateSize() {
-        this._size = this._bottomRight.$subtract(this._topLeft).abs();
-        this._updateCenter();
-    }
-    /**
-     * Recalculate center
-     */
-    _updateCenter() {
-        this._center = this._size.$multiply(0.5).add(this._topLeft);
-    }
-    /**
-     * Recalculate based on top-left position and size
-     */
-    _updatePosFromTop() {
-        this._bottomRight = this._topLeft.$add(this._size);
-        this._updateCenter();
-    }
-    /**
-     * Recalculate based on bottom-right position and size
-     */
-    _updatePosFromBottom() {
-        this._topLeft = this._bottomRight.$subtract(this._size);
-        this._updateCenter();
-    }
-    /**
-     * Recalculate based on center position and size
-     */
-    _updatePosFromCenter() {
-        let half = this._size.$multiply(0.5);
-        this._topLeft = this._center.$subtract(half);
-        this._bottomRight = this._center.$add(half);
-    }
-    get size() { return new Pt_1.Pt(this._size); }
-    set size(p) {
-        this._size = new Pt_1.Pt(p);
-        this._updatePosFromTop();
-    }
-    get center() { return new Pt_1.Pt(this._center); }
-    set center(p) {
-        this._center = new Pt_1.Pt(p);
-        this._updatePosFromCenter();
-    }
-    get topLeft() { return new Pt_1.Pt(this._topLeft); }
-    set topLeft(p) {
-        this._topLeft = new Pt_1.Pt(p);
-        this[0] = this._topLeft;
-        this._updateSize();
-    }
-    get bottomRight() { return new Pt_1.Pt(this._bottomRight); }
-    set bottomRight(p) {
-        this._bottomRight = new Pt_1.Pt(p);
-        this[1] = this._bottomRight;
-        this._updateSize();
-    }
-    get width() { return (this._size.length > 0) ? this._size.x : 0; }
-    set width(w) {
-        this._size.x = w;
-        this._updatePosFromTop();
-    }
-    get height() { return (this._size.length > 1) ? this._size.y : 0; }
-    set height(h) {
-        this._size.y = h;
-        this._updatePosFromTop();
-    }
-    get depth() { return (this._size.length > 2) ? this._size.z : 0; }
-    set depth(d) {
-        this._size.z = d;
-        this._updatePosFromTop();
-    }
-    get x() { return this.topLeft.x; }
-    get y() { return this.topLeft.y; }
-    get z() { return this.topLeft.z; }
-    get inited() { return this._inited; }
-    /**
-     * If the Group elements are changed, call this function to update the Bound's properties.
-     * It's preferable to change the topLeft/bottomRight etc properties instead of changing the Group array directly.
-     */
-    update() {
-        this._topLeft = this[0];
-        this._bottomRight = this[1];
-        this._updateSize();
-        return this;
-    }
-}
-exports.Bound = Bound;
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-// Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
 const Util_1 = __webpack_require__(1);
 const Num_1 = __webpack_require__(3);
 const Pt_1 = __webpack_require__(0);
-const LinearAlgebra_1 = __webpack_require__(2);
+const LinearAlgebra_1 = __webpack_require__(4);
 let _errorLength = (obj, param = "expected") => Util_1.Util.warn("Group's length is less than " + param, obj);
 let _errorOutofBound = (obj, param = "") => Util_1.Util.warn(`Index ${param} is out of bound in Group`, obj);
 /**
@@ -24687,6 +23526,60 @@ class Line {
         return pts;
     }
     /**
+     * Crop this line by a circle or rectangle at end point.
+     * @param line line to crop
+     * @param size size of circle or rectangle as Pt
+     * @param index line's end point index, ie, 0 = start and 1 = end.
+     * @param cropAsCircle a boolean to specify whether the `size` parameter should be treated as circle. Default is `true`.
+     * @return an intersecting point on the line that can be used for cropping.
+     */
+    static crop(line, size, index = 0, cropAsCircle = true) {
+        let tdx = (index === 0) ? 1 : 0;
+        let ls = line[tdx].$subtract(line[index]);
+        if (ls[0] === 0 || size[0] === 0)
+            return line[index];
+        if (cropAsCircle) {
+            let d = ls.unit().multiply(size[1]);
+            return line[index].$add(d);
+        }
+        else {
+            let rect = Rectangle.fromCenter(line[index], size);
+            let sides = Rectangle.sides(rect);
+            let sideIdx = 0;
+            if (Math.abs(ls[1] / ls[0]) > Math.abs(size[1] / size[0])) {
+                sideIdx = (ls[1] < 0) ? 0 : 2;
+            }
+            else {
+                sideIdx = (ls[0] < 0) ? 3 : 1;
+            }
+            return Line.intersectRay2D(sides[sideIdx], line);
+        }
+    }
+    /**
+     * Create an marker arrow or line, placed at an end point of this line
+     * @param line line to place marker
+     * @param size size of the marker as Pt
+     * @param graphic either "arrow" or "line"
+     * @param atTail a boolean, if `true`, the marker will be positioned at tail of the line (ie, index = 1). Default is `true`.
+     * @returns a Group that defines the marker's shape
+     */
+    static marker(line, size, graphic = ("arrow" || "line"), atTail = true) {
+        let h = atTail ? 0 : 1;
+        let t = atTail ? 1 : 0;
+        let unit = line[h].$subtract(line[t]);
+        if (unit.magnitudeSq() === 0)
+            return new Pt_1.Group();
+        unit.unit();
+        let ps = Num_1.Geom.perpendicular(unit).multiply(size[0]).add(line[t]);
+        if (graphic == "arrow") {
+            ps.add(unit.$multiply(size[1]));
+            return new Pt_1.Group(line[t], ps[0], ps[1]);
+        }
+        else {
+            return new Pt_1.Group(ps[0], ps[1]);
+        }
+    }
+    /**
      * Convert this line to a rectangle representation
      * @param line a Group representing a line
      */
@@ -24734,6 +23627,16 @@ class Rectangle {
      */
     static toCircle(pts) {
         return Circle.fromRect(pts);
+    }
+    /**
+     * Create a square that either fits within or encloses a rectangle
+     * @param pts a Group of 2 Pts representing a rectangle
+     * @param enclose if `true`, the square will enclose the rectangle. Default is `false`, which will fit the square inside the rectangle.
+     */
+    static toSquare(pts, enclose = false) {
+        let s = Rectangle.size(pts);
+        let m = (enclose) ? s.maxValue().value : s.minValue().value;
+        return Rectangle.fromCenter(Rectangle.center(pts), m, m);
     }
     /**
      * Get the size of this rectangle as a Pt
@@ -24804,14 +23707,29 @@ class Rectangle {
         return Rectangle.corners(rect);
     }
     /**
-     * Subdivide this rectangle into 4 rectangles, one for each quadrant
+     * Subdivide a rectangle into 4 rectangles, one for each quadrant
      * @param rect a Group of 2 Pts representing a Rectangle
-     * @returns an array of 4 Groups
+     * @returns an array of 4 Groups of rectangles
      */
     static quadrants(rect, center) {
         let corners = Rectangle.corners(rect);
-        let _center = (center != undefined) ? new Pt_1.Pt(center) : Num_1.Geom.interpolate(rect[0], rect[1], 0.5);
+        let _center = (center != undefined) ? new Pt_1.Pt(center) : Rectangle.center(rect);
         return corners.map((c) => new Pt_1.Group(c, _center).boundingBox());
+    }
+    /**
+     * Subdivde a rectangle into 2 rectangles, by row or by column
+     * @param rect Group of 2 Pts representing a Rectangle
+     * @param ratio a value between 0 to 1 to indicate the split ratio
+     * @param asRows if `true`, split into 2 rows. Default is `false` which splits into 2 columns.
+     * @returns an array of 2 Groups of rectangles
+     */
+    static halves(rect, ratio = 0.5, asRows = false) {
+        let min = rect[0].$min(rect[1]);
+        let max = rect[0].$max(rect[1]);
+        let mid = (asRows) ? Num_1.Num.lerp(min[1], max[1], ratio) : Num_1.Num.lerp(min[0], max[0], ratio);
+        return (asRows)
+            ? [new Pt_1.Group(min, new Pt_1.Pt(max[0], mid)), new Pt_1.Group(new Pt_1.Pt(min[0], mid), max)]
+            : [new Pt_1.Group(min, new Pt_1.Pt(mid, max[1])), new Pt_1.Group(new Pt_1.Pt(mid, min[1]), max)];
     }
     /**
      * Check if a point is within a rectangle
@@ -24880,10 +23798,11 @@ class Circle {
      * Check if a point is within a circle
      * @param pts a Group of 2 Pts representing a circle
      * @param pt the point to checks
+     * @param threshold an optional small number to set threshold. Default is 0.
      */
-    static withinBound(pts, pt) {
+    static withinBound(pts, pt, threshold = 0) {
         let d = pts[0].$subtract(pt);
-        return d.dot(d) < pts[1].x * pts[1].x;
+        return d.dot(d) + threshold < pts[1].x * pts[1].x;
     }
     /**
      * Get the intersection points between a circle and a ray (infinite line)
@@ -25358,6 +24277,7 @@ class Polygon {
      * Given a target Pt, find a Pt in a Group that's nearest to it.
      * @param pts a Group of Pt
      * @param pt Pt to check
+     * @returns an index in the pts indicating the nearest Pt, or -1 if none found
      */
     static nearestPt(pts, pt) {
         let _near = Number.MAX_VALUE;
@@ -25369,7 +24289,7 @@ class Polygon {
                 _item = i;
             }
         }
-        return (_item >= 0) ? pts[_item] : undefined;
+        return _item;
     }
     /**
      * Get a bounding box for each polygon group, as well as a union bounding-box for all groups
@@ -25651,51 +24571,1513 @@ exports.Curve = Curve;
 
 
 /***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Util_1 = __webpack_require__(1);
+const Op_1 = __webpack_require__(2);
+const Pt_1 = __webpack_require__(0);
+const LinearAlgebra_1 = __webpack_require__(4);
+/**
+ * Num class provides various helper functions for basic numeric operations
+ */
+class Num {
+    /**
+     * Check if two numbers are equal or almost equal within a threshold
+     * @param a number a
+     * @param b number b
+     * @param threshold a threshold within which the two numbers are considered equal
+     */
+    static equals(a, b, threshold = 0.00001) {
+        return Math.abs(a - b) < threshold;
+    }
+    /**
+     * Linear interpolation
+     * @param a start value
+     * @param b end value
+     * @param t usually a value between 0 to 1
+     */
+    static lerp(a, b, t) {
+        return (1 - t) * a + t * b;
+    }
+    /**
+     * Clamp values between min and max
+     * @param val value to clamp
+     * @param min min value
+     * @param max max value
+     */
+    static clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+    }
+    /**
+     * Different from Num.clamp in that the value out-of-bound will be "looped back" to the other end.
+     * @param val value to bound
+     * @param min min value
+     * @param max max value
+     * @example `boundValue(361, 0, 360)` will return 1
+     */
+    static boundValue(val, min, max) {
+        let len = Math.abs(max - min);
+        let a = val % len;
+        if (a > max)
+            a -= len;
+        else if (a < min)
+            a += len;
+        return a;
+    }
+    /**
+     * Check if a value is within
+     * @param p
+     * @param a
+     * @param b
+     */
+    static within(p, a, b) {
+        return p >= Math.min(a, b) && p <= Math.max(a, b);
+    }
+    /**
+     * Get a random number within a range
+     * @param a range value 1
+     * @param b range value 2
+     */
+    static randomRange(a, b = 0) {
+        let r = (a > b) ? (a - b) : (b - a);
+        return a + Math.random() * r;
+    }
+    /**
+     * Normalize a value within a range
+     * @param n the value to normalize
+     * @param a range value 1
+     * @param b range value 1
+     */
+    static normalizeValue(n, a, b) {
+        let min = Math.min(a, b);
+        let max = Math.max(a, b);
+        return (n - min) / (max - min);
+    }
+    /**
+     * Sum a group of numeric arrays
+     * @param pts an array of numeric arrays
+     * @returns a array of sums
+     */
+    static sum(pts) {
+        let c = new Pt_1.Pt(pts[0]);
+        for (let i = 1, len = pts.length; i < len; i++) {
+            LinearAlgebra_1.Vec.add(c, pts[i]);
+        }
+        return c;
+    }
+    /**
+     * Sum a group of numeric arrays
+     * @param pts an array of numeric arrays
+     * @returns a array of sums
+     */
+    static average(pts) {
+        return Num.sum(pts).divide(pts.length);
+    }
+    /**
+     * Given a value between 0 to 1, returns a value that cycles between 0 -> 1 -> 0 using sine method.
+     * @param t a value between 0 to 1
+     * @return a value between 0 to 1
+     */
+    static cycle(t) {
+        return (Math.sin(Math.PI * 2 * t) + 1) / 2;
+    }
+    /**
+     * Map a value from one range to another
+     * @param n a value in the first range
+     * @param currMin lower bound of the first range
+     * @param currMax upper bound of the first range
+     * @param targetMin lower bound of the second range
+     * @param targetMax upper bound of the second range
+     * @returns a remapped value in the second range
+     */
+    static mapToRange(n, currA, currB, targetA, targetB) {
+        if (currA == currB)
+            throw new Error("[currMin, currMax] must define a range that is not zero");
+        let min = Math.min(targetA, targetB);
+        let max = Math.max(targetA, targetB);
+        return Num.normalizeValue(n, currA, currB) * (max - min) + min;
+    }
+}
+exports.Num = Num;
+/**
+ * Geom class provides various helper functions for basic geometric operations
+ */
+class Geom {
+    /**
+     * Bound an angle between 0 to 360 degrees
+     */
+    static boundAngle(angle) {
+        return Num.boundValue(angle, 0, 360);
+    }
+    /**
+     * Bound a radian between 0 to 2-PI
+     */
+    static boundRadian(angle) {
+        return Num.boundValue(angle, 0, Util_1.Const.two_pi);
+    }
+    /**
+     * Convert an angle in degree to radian
+     */
+    static toRadian(angle) {
+        return angle * Util_1.Const.deg_to_rad;
+    }
+    /**
+     * Convert an angle in radian to degree
+     */
+    static toDegree(radian) {
+        return radian * Util_1.Const.rad_to_deg;
+    }
+    /**
+     * Get a bounding box for a set of Pts
+     * @param pts a Group or an array of Pts
+     * @return a Group of two Pts, representing the top-left and bottom-right corners.
+     */
+    static boundingBox(pts) {
+        let minPt = pts.reduce((a, p) => a.$min(p));
+        let maxPt = pts.reduce((a, p) => a.$max(p));
+        return new Pt_1.Group(minPt, maxPt);
+    }
+    /**
+     * Get a centroid (the average middle point) for a set of Pts
+     * @param pts a Group or an array of Pts
+     * @return a centroid Pt
+     */
+    static centroid(pts) {
+        return Num.average(pts);
+    }
+    /**
+     * Given an anchor Pt, rebase all Pts in this group either to or from this anchor base.
+     * @param pts a Group or array of Pt
+     * @param ptOrIndex an index for the Pt array, or an external Pt
+     * @param direction "to" (subtract all Pt with this anchor base) or "from" (add all Pt from this anchor base)
+     */
+    static anchor(pts, ptOrIndex = 0, direction = "to") {
+        let method = (direction == "to") ? "subtract" : "add";
+        for (let i = 0, len = pts.length; i < len; i++) {
+            if (typeof ptOrIndex == "number") {
+                if (ptOrIndex !== i)
+                    pts[i][method](pts[ptOrIndex]);
+            }
+            else {
+                pts[i][method](ptOrIndex);
+            }
+        }
+    }
+    /**
+     * Get an interpolated (or extrapolated) value between two Pts
+     * @param a first Pt
+     * @param b second Pt
+     * @param t a value between 0 to 1 to interpolate, or any other value to extrapolate
+     * @returns interpolated point as a new Pt
+     */
+    static interpolate(a, b, t = 0.5) {
+        let len = Math.min(a.length, b.length);
+        let d = Pt_1.Pt.make(len);
+        for (let i = 0; i < len; i++) {
+            d[i] = a[i] * (1 - t) + b[i] * t;
+        }
+        return d;
+    }
+    /**
+     * Find two Pt that are perpendicular to this Pt (2D)
+     * @param axis a string such as "xy" (use Const.xy) or an array to specify index for two dimensions
+     * @returns an array of two Pt that are perpendicular to this Pt
+     */
+    static perpendicular(pt, axis = Util_1.Const.xy) {
+        let y = axis[1];
+        let x = axis[0];
+        let p = new Pt_1.Pt(pt);
+        let pa = new Pt_1.Pt(p);
+        pa[x] = -p[y];
+        pa[y] = p[x];
+        let pb = new Pt_1.Pt(p);
+        pb[x] = p[y];
+        pb[y] = -p[x];
+        return new Pt_1.Group(pa, pb);
+    }
+    /**
+     * Check if two Pts (vectors) are perpendicular to each other
+     */
+    static isPerpendicular(p1, p2) {
+        return new Pt_1.Pt(p1).dot(p2) === 0;
+    }
+    /**
+     * Check if a Pt is within the rectangular boundary defined by two Pts
+     * @param pt the Pt to check
+     * @param boundPt1 boundary Pt 1
+     * @param boundPt2 boundary Pt 2
+     */
+    static withinBound(pt, boundPt1, boundPt2) {
+        for (let i = 0, len = Math.min(pt.length, boundPt1.length, boundPt2.length); i < len; i++) {
+            if (!Num.within(pt[i], boundPt1[i], boundPt2[i]))
+                return false;
+        }
+        return true;
+    }
+    /**
+     * Sort the Pts so that their edges will form a non-overlapping polygon
+     * Ref: https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
+     * @param pts an array of Pts
+     */
+    static sortEdges(pts) {
+        let bounds = Geom.boundingBox(pts);
+        let center = bounds[1].add(bounds[0]).divide(2);
+        let fn = (a, b) => {
+            if (a.length < 2 || b.length < 2)
+                throw new Error("Pt dimension cannot be less than 2");
+            let da = a.$subtract(center);
+            let db = b.$subtract(center);
+            if (da[0] >= 0 && db[0] < 0)
+                return 1;
+            if (da[0] < 0 && db[0] >= 0)
+                return -1;
+            if (da[0] == 0 && db[0] == 0) {
+                if (da[1] >= 0 || db[1] >= 0)
+                    return (da[1] > db[1]) ? 1 : -1;
+                return (db[1] > da[1]) ? 1 : -1;
+            }
+            // compute the cross product of vectors (center -> a) x (center -> b)
+            let det = da.cross2D(db);
+            if (det < 0)
+                return 1;
+            if (det > 0)
+                return -1;
+            // points a and b are on the same line from the center
+            // check which point is closer to the center
+            return (da[0] * da[0] + da[1] * da[1] > db[0] * db[0] + db[1] * db[1]) ? 1 : -1;
+        };
+        return pts.sort(fn);
+    }
+    /**
+     * Scale a Pt or a Group of Pts
+     * @param ps a Pt or a Group of Pts
+     * @param scale scale value
+     * @param anchor optional anchor point to scale from
+     */
+    static scale(ps, scale, anchor) {
+        let pts = (!Array.isArray(ps)) ? [ps] : ps;
+        let scs = (typeof scale == "number") ? Pt_1.Pt.make(pts[0].length, scale) : scale;
+        if (!anchor)
+            anchor = Pt_1.Pt.make(pts[0].length, 0);
+        for (let i = 0, len = pts.length; i < len; i++) {
+            let p = pts[i];
+            for (let k = 0, lenP = p.length; k < lenP; k++) {
+                p[k] = (anchor && anchor[k]) ? anchor[k] + (p[k] - anchor[k]) * scs[k] : p[k] * scs[k];
+            }
+        }
+        return Geom;
+    }
+    /**
+     * Rotate a Pt or a Group of Pts in 2D space
+     * @param ps a Pt or a Group of Pts
+     * @param angle rotate angle
+     * @param anchor optional anchor point to rotate from
+     * @param axis optional axis such as "yz" to define a 2D plane of rotation
+     */
+    static rotate2D(ps, angle, anchor, axis) {
+        let pts = (!Array.isArray(ps)) ? [ps] : ps;
+        let fn = (anchor) ? LinearAlgebra_1.Mat.rotateAt2DMatrix : LinearAlgebra_1.Mat.rotate2DMatrix;
+        if (!anchor)
+            anchor = Pt_1.Pt.make(pts[0].length, 0);
+        let cos = Math.cos(angle);
+        let sin = Math.sin(angle);
+        for (let i = 0, len = pts.length; i < len; i++) {
+            let p = (axis) ? pts[i].$take(axis) : pts[i];
+            p.to(LinearAlgebra_1.Mat.transform2D(p, fn(cos, sin, anchor)));
+        }
+        return Geom;
+    }
+    /**
+     * Shear a Pt or a Group of Pts in 2D space
+     * @param ps a Pt or a Group of Pts
+     * @param scale shearing value which can be a number or an array of 2 numbers
+     * @param anchor optional anchor point to shear from
+     * @param axis optional axis such as "yz" to define a 2D plane of shearing
+     */
+    static shear2D(ps, scale, anchor, axis) {
+        let pts = (!Array.isArray(ps)) ? [ps] : ps;
+        let s = (typeof scale == "number") ? [scale, scale] : scale;
+        if (!anchor)
+            anchor = Pt_1.Pt.make(pts[0].length, 0);
+        let fn = (anchor) ? LinearAlgebra_1.Mat.shearAt2DMatrix : LinearAlgebra_1.Mat.shear2DMatrix;
+        let tanx = Math.tan(s[0]);
+        let tany = Math.tan(s[1]);
+        for (let i = 0, len = pts.length; i < len; i++) {
+            let p = (axis) ? pts[i].$take(axis) : pts[i];
+            p.to(LinearAlgebra_1.Mat.transform2D(p, fn(tanx, tany, anchor)));
+        }
+        return Geom;
+    }
+    /**
+     * Reflect a Pt or a Group of Pts along a 2D line
+     * @param ps a Pt or a Group of Pts
+     * @param line a Group of 2 Pts that defines a line for reflection
+     * @param axis optional axis such as "yz" to define a 2D plane of reflection
+     */
+    static reflect2D(ps, line, axis) {
+        let pts = (!Array.isArray(ps)) ? [ps] : ps;
+        for (let i = 0, len = pts.length; i < len; i++) {
+            let p = (axis) ? pts[i].$take(axis) : pts[i];
+            p.to(LinearAlgebra_1.Mat.transform2D(p, LinearAlgebra_1.Mat.reflectAt2DMatrix(line[0], line[1])));
+        }
+        return Geom;
+    }
+    /**
+     * Generate a sine and cosine lookup table
+     * @returns an object with 2 tables (array of 360 values) and 2 functions to get sin/cos given a radian parameter. { sinTable:Float64Array, cosTable:Float64Array, sin:(rad)=>number, cos:(rad)=>number }
+     */
+    static cosTable() {
+        let cos = new Float64Array(360);
+        for (let i = 0; i < 360; i++)
+            cos[i] = Math.cos(i * Math.PI / 180);
+        let find = (rad) => cos[Math.floor(Geom.boundAngle(Geom.toDegree(rad)))];
+        return { table: cos, cos: find };
+    }
+    /**
+     * Generate a sine and cosine lookup table
+     * @returns an object with 2 tables (array of 360 values) and 2 functions to get sin/cos given a radian parameter. { sinTable:Float64Array, cosTable:Float64Array, sin:(rad)=>number, cos:(rad)=>number }
+     */
+    static sinTable() {
+        let sin = new Float64Array(360);
+        for (let i = 0; i < 360; i++)
+            sin[i] = Math.sin(i * Math.PI / 180);
+        let find = (rad) => sin[Math.floor(Geom.boundAngle(Geom.toDegree(rad)))];
+        return { table: sin, sin: find };
+    }
+}
+exports.Geom = Geom;
+/**
+ * Shaping provides various shaping/easing functions to interpolate a value non-linearly.
+ */
+class Shaping {
+    /**
+     * Linear mapping
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static linear(t, c = 1) {
+        return c * t;
+    }
+    /**
+     * Quadratic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+    */
+    static quadraticIn(t, c = 1) {
+        return c * t * t;
+    }
+    /**
+     * Quadratic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+    */
+    static quadraticOut(t, c = 1) {
+        return -c * t * (t - 2);
+    }
+    /**
+     * Quadratic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static quadraticInOut(t, c = 1) {
+        let dt = t * 2;
+        return (t < 0.5) ? c / 2 * t * t * 4 : -c / 2 * ((dt - 1) * (dt - 3) - 1);
+    }
+    /**
+     * Cubic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static cubicIn(t, c = 1) {
+        return c * t * t * t;
+    }
+    /**
+     * Cubic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static cubicOut(t, c = 1) {
+        let dt = t - 1;
+        return c * (dt * dt * dt + 1);
+    }
+    /**
+     * Cubic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static cubicInOut(t, c = 1) {
+        let dt = t * 2;
+        return (t < 0.5) ? c / 2 * dt * dt * dt : c / 2 * ((dt - 2) * (dt - 2) * (dt - 2) + 2);
+    }
+    /**
+     * Exponential ease In, adapted from Golan Levin's [polynomial shapers](http://www.flong.com/texts/code/shapers_poly/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p a value between 0 to 1 to control the curve. Default is 0.25.
+     */
+    static exponentialIn(t, c = 1, p = 0.25) {
+        return c * Math.pow(t, 1 / p);
+    }
+    /**
+     * Exponential ease out, adapted from Golan Levin's [polynomial shapers](http://www.flong.com/texts/code/shapers_poly/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p a value between 0 to 1 to control the curve. Default is 0.25.
+     */
+    static exponentialOut(t, c = 1, p = 0.25) {
+        return c * Math.pow(t, p);
+    }
+    /**
+     * Sinuous in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static sineIn(t, c = 1) {
+        return -c * Math.cos(t * Util_1.Const.half_pi) + c;
+    }
+    /**
+     * Sinuous out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static sineOut(t, c = 1) {
+        return c * Math.sin(t * Util_1.Const.half_pi);
+    }
+    /**
+     * Sinuous in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static sineInOut(t, c = 1) {
+        return -c / 2 * (Math.cos(Math.PI * t) - 1);
+    }
+    /**
+     * A faster way to approximate cosine ease in-out using Blinn-Wyvill Approximation. Adapated from Golan Levin's [polynomial shaping](http://www.flong.com/texts/code/shapers_poly/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static cosineApprox(t, c = 1) {
+        let t2 = t * t;
+        let t4 = t2 * t2;
+        let t6 = t4 * t2;
+        return c * (4 * t6 / 9 - 17 * t4 / 9 + 22 * t2 / 9);
+    }
+    /**
+     * Circular in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static circularIn(t, c = 1) {
+        return -c * (Math.sqrt(1 - t * t) - 1);
+    }
+    /**
+     * Circular out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static circularOut(t, c = 1) {
+        let dt = t - 1;
+        return c * Math.sqrt(1 - dt * dt);
+    }
+    /**
+     * Circular in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static circularInOut(t, c = 1) {
+        let dt = t * 2;
+        return (t < 0.5) ? -c / 2 * (Math.sqrt(1 - dt * dt) - 1) : c / 2 * (Math.sqrt(1 - (dt - 2) * (dt - 2)) + 1);
+    }
+    /**
+     * Elastic in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.7.
+     */
+    static elasticIn(t, c = 1, p = 0.7) {
+        let dt = t - 1;
+        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
+        return c * (-Math.pow(2, 10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p));
+    }
+    /**
+     * Elastic out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.7.
+     */
+    static elasticOut(t, c = 1, p = 0.7) {
+        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
+        return c * (Math.pow(2, -10 * t) * Math.sin((t - s) * Util_1.Const.two_pi / p)) + c;
+    }
+    /**
+     * Elastic in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p elastic parmeter between 0 to 1. The lower the number, the more elastic it will be. Default is 0.6.
+     */
+    static elasticInOut(t, c = 1, p = 0.6) {
+        let dt = t * 2;
+        let s = (p / Util_1.Const.two_pi) * 1.5707963267948966;
+        if (t < 0.5) {
+            dt -= 1;
+            return c * (-0.5 * (Math.pow(2, 10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p)));
+        }
+        else {
+            dt -= 1;
+            return c * (0.5 * (Math.pow(2, -10 * dt) * Math.sin((dt - s) * Util_1.Const.two_pi / p))) + c;
+        }
+    }
+    /**
+     * Bounce in, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static bounceIn(t, c = 1) {
+        return c - Shaping.bounceOut((1 - t), c);
+    }
+    /**
+     * Bounce out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static bounceOut(t, c = 1) {
+        if (t < (1 / 2.75)) {
+            return c * (7.5625 * t * t);
+        }
+        else if (t < (2 / 2.75)) {
+            t -= 1.5 / 2.75;
+            return c * (7.5625 * t * t + 0.75);
+        }
+        else if (t < (2.5 / 2.75)) {
+            t -= 2.25 / 2.75;
+            return c * (7.5625 * t * t + 0.9375);
+        }
+        else {
+            t -= 2.625 / 2.75;
+            return c * (7.5625 * t * t + 0.984375);
+        }
+    }
+    /**
+     * Bounce in-out, adapted from Robert Penner's [easing functions](http://robertpenner.com/easing/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     */
+    static bounceInOut(t, c = 1) {
+        return (t < 0.5) ? Shaping.bounceIn(t * 2, c) / 2 : Shaping.bounceOut(t * 2 - 1, c) / 2 + c / 2;
+    }
+    /**
+     * Sigmoid curve changes its shape adapted from the input value, but always returns a value between 0 to 1.
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p the larger the value, the "steeper" the curve will be. Default is 10.
+     */
+    static sigmoid(t, c = 1, p = 10) {
+        let d = p * (t - 0.5);
+        return c / (1 + Math.exp(-d));
+    }
+    /**
+     * The Logistic Sigmoid is a useful curve. Adapted from Golan Levin's [shaping function](http://www.flong.com/texts/code/shapers_exp/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p a parameter between 0 to 1 to control the steepness of the curve. Higher is steeper. Default is 0.7.
+     */
+    static logSigmoid(t, c = 1, p = 0.7) {
+        p = Math.max(Util_1.Const.epsilon, Math.min(1 - Util_1.Const.epsilon, p));
+        p = 1 / (1 - p);
+        let A = 1 / (1 + Math.exp(((t - 0.5) * p * -2)));
+        let B = 1 / (1 + Math.exp(p));
+        let C = 1 / (1 + Math.exp(-p));
+        return c * (A - B) / (C - B);
+    }
+    /**
+     * An exponential seat curve. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_exp/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p a parameter between 0 to 1 to control the steepness of the curve. Higher is steeper. Default is 0.5.
+     */
+    static seat(t, c = 1, p = 0.5) {
+        if ((t < 0.5)) {
+            return c * (Math.pow(2 * t, 1 - p)) / 2;
+        }
+        else {
+            return c * (1 - (Math.pow(2 * (1 - t), 1 - p)) / 2);
+        }
+    }
+    /**
+     * Quadratic bezier curve. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_exp/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p1 a Pt object specifying the first control Pt, or a value specifying the control Pt's x position (its y position will default to 0.5). Default is `Pt(0.95, 0.95)
+     */
+    static quadraticBezier(t, c = 1, p = [0.05, 0.95]) {
+        let a = (typeof p != "number") ? p[0] : p;
+        let b = (typeof p != "number") ? p[1] : 0.5;
+        let om2a = 1 - 2 * a;
+        if (om2a === 0) {
+            om2a = Util_1.Const.epsilon;
+        }
+        let d = (Math.sqrt(a * a + om2a * t) - a) / om2a;
+        return c * ((1 - 2 * b) * (d * d) + (2 * b) * d);
+    }
+    /**
+     * Cubic bezier curve. This reuses the bezier functions in Curve class.
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p1` a Pt object specifying the first control Pt. Default is `Pt(0.1, 0.7).
+     * @parma p2` a Pt object specifying the second control Pt. Default is `Pt(0.9, 0.2).
+     */
+    static cubicBezier(t, c = 1, p1 = [0.1, 0.7], p2 = [0.9, 0.2]) {
+        let curve = new Pt_1.Group(new Pt_1.Pt(0, 0), new Pt_1.Pt(p1), new Pt_1.Pt(p2), new Pt_1.Pt(1, 1));
+        return c * Op_1.Curve.bezierStep(new Pt_1.Pt(t * t * t, t * t, t, 1), Op_1.Curve.controlPoints(curve)).y;
+    }
+    /**
+     * Give a Pt, draw a quadratic curve that will pass through that Pt as closely as possible. Adapted from Golan Levin's [shaping functions](http://www.flong.com/texts/code/shapers_poly/)
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p1` a Pt object specifying the Pt to pass through. Default is `Pt(0.2, 0.35)
+     */
+    static quadraticTarget(t, c = 1, p1 = [0.2, 0.35]) {
+        let a = Math.min(1 - Util_1.Const.epsilon, Math.max(Util_1.Const.epsilon, p1[0]));
+        let b = Math.min(1, Math.max(0, p1[1]));
+        let A = (1 - b) / (1 - a) - (b / a);
+        let B = (A * (a * a) - b) / a;
+        let y = A * (t * t) - B * t;
+        return c * Math.min(1, Math.max(0, y));
+    }
+    /**
+     * Step function is a simple jump from 0 to 1 at a specific Pt in time
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma p usually a value between 0 to 1, which specify the Pt to "jump". Default is 0.5 which is in the middle.
+     */
+    static cliff(t, c = 1, p = 0.5) {
+        return (t > p) ? c : 0;
+    }
+    /**
+     * Convert any shaping functions into a series of steps
+     * @parma fn the original shaping function
+     * @parma steps the number of steps
+     * @parma t a value between 0 to 1
+     * @parma c the value to shape, default is 1
+     * @parma args optional paramters to pass to original function
+     */
+    static step(fn, steps, t, c, ...args) {
+        let s = 1 / steps;
+        let tt = Math.floor(t / s) * s;
+        return fn(tt, c, ...args);
+    }
+}
+exports.Shaping = Shaping;
+/**
+ * Range object keeps track of a Group of n-dimensional Pts to provide its minimum, maximum, and magnitude in each dimension.
+ * It also provides convenient functions such as mapping the Group to another range.
+ */
+class Range {
+    /**
+     * Construct a Range instance for a Group of Pts,
+     * @param g a Group or an array of Pts
+     */
+    constructor(g) {
+        this._dims = 0;
+        this._source = Pt_1.Group.fromPtArray(g);
+        this.calc();
+    }
+    /**
+     * Get this Range's maximum values per dimension
+     */
+    get max() { return this._max.clone(); }
+    /**
+     * Get this Range's minimum values per dimension
+     */
+    get min() { return this._min.clone(); }
+    /**
+     * Get this Range's magnitude in each dimension
+     */
+    get magnitude() { return this._mag.clone(); }
+    /**
+     * Go through the group and find its min and max values.
+     * Usually you don't need to call this function directly.
+     */
+    calc() {
+        if (!this._source)
+            return;
+        let dims = this._source[0].length;
+        this._dims = dims;
+        let max = new Pt_1.Pt(dims);
+        let min = new Pt_1.Pt(dims);
+        let mag = new Pt_1.Pt(dims);
+        for (let i = 0; i < dims; i++) {
+            max[i] = Util_1.Const.min;
+            min[i] = Util_1.Const.max;
+            mag[i] = 0;
+            let s = this._source.zipSlice(i);
+            for (let k = 0, len = s.length; k < len; k++) {
+                max[i] = Math.max(max[i], s[k]);
+                min[i] = Math.min(min[i], s[k]);
+                mag[i] = max[i] - min[i];
+            }
+        }
+        this._max = max;
+        this._min = min;
+        this._mag = mag;
+        return this;
+    }
+    /**
+     * Map this Range to another range of values
+     * @param min target range's minimum value
+     * @param max target range's maximum value
+     * @param exclude Optional boolean array where `true` means excluding the conversion in that specific dimension.
+     */
+    mapTo(min, max, exclude) {
+        let target = new Pt_1.Group();
+        for (let i = 0, len = this._source.length; i < len; i++) {
+            let g = this._source[i];
+            let n = new Pt_1.Pt(this._dims);
+            for (let k = 0; k < this._dims; k++) {
+                n[k] = (exclude && exclude[k]) ? g[k] : Num.mapToRange(g[k], this._min[k], this._max[k], min, max);
+            }
+            target.push(n);
+        }
+        return target;
+    }
+    /**
+     * Add more Pts to this Range and recalculate its min and max values
+     * @param g a Group or an array of Pts to append to this Range
+     * @param update Optional. Set the parameter to `false` if you want to append without immediately updating this Range's min and max values. Default is `true`.
+     */
+    append(g, update = true) {
+        if (g[0].length !== this._dims)
+            throw new Error(`Dimensions don't match. ${this._dims} dimensions in Range and ${g[0].length} provided in parameter. `);
+        this._source = this._source.concat(g);
+        if (update)
+            this.calc();
+        return this;
+    }
+    /**
+     * Create a number of evenly spaced "ticks" that span this Range's min and max value.
+     * @param count number of subdivision. For example, 10 subdivision will return 11 tick values, which include first(min) and last(max) values.
+     */
+    ticks(count) {
+        let g = new Pt_1.Group();
+        for (let i = 0; i <= count; i++) {
+            let p = new Pt_1.Pt(this._dims);
+            for (let k = 0, len = this._max.length; k < len; k++) {
+                p[k] = Num.lerp(this._min[k], this._max[k], i / count);
+            }
+            g.push(p);
+        }
+        return g;
+    }
+}
+exports.Range = Range;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Pt_1 = __webpack_require__(0);
+const Op_1 = __webpack_require__(2);
+/**
+ * Vec provides static function for vector operations. It's not yet optimized but good enough to use.
+ */
+class Vec {
+    /**
+     * Add b to vector `a`
+     * @returns vector `a`
+     */
+    static add(a, b) {
+        if (typeof b == "number") {
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] += b;
+        }
+        else {
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] += b[i] || 0;
+        }
+        return a;
+    }
+    /**
+     * Subtract `b` from vector `a`
+     * @returns vector `a`
+     */
+    static subtract(a, b) {
+        if (typeof b == "number") {
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] -= b;
+        }
+        else {
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] -= b[i] || 0;
+        }
+        return a;
+    }
+    /**
+     * Multiply `b` with vector `a`
+     * @returns vector `a`
+     */
+    static multiply(a, b) {
+        if (typeof b == "number") {
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] *= b;
+        }
+        else {
+            if (a.length != b.length) {
+                throw new Error(`Cannot do element-wise multiply since the array lengths don't match: ${a.toString()} multiply-with ${b.toString()}`);
+            }
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] *= b[i];
+        }
+        return a;
+    }
+    /**
+     * Divide `a` over `b`
+     * @returns vector `a`
+     */
+    static divide(a, b) {
+        if (typeof b == "number") {
+            if (b === 0)
+                throw new Error("Cannot divide by zero");
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] /= b;
+        }
+        else {
+            if (a.length != b.length) {
+                throw new Error(`Cannot do element-wise divide since the array lengths don't match. ${a.toString()} divide-by ${b.toString()}`);
+            }
+            for (let i = 0, len = a.length; i < len; i++)
+                a[i] /= b[i];
+        }
+        return a;
+    }
+    /**
+     * Dot product of `a` and `b`
+     */
+    static dot(a, b) {
+        if (a.length != b.length)
+            throw new Error("Array lengths don't match");
+        let d = 0;
+        for (let i = 0, len = a.length; i < len; i++) {
+            d += a[i] * b[i];
+        }
+        return d;
+    }
+    /**
+     * 2D cross product of `a` and `b`
+     */
+    static cross2D(a, b) {
+        return a[0] * b[1] - a[1] * b[0];
+    }
+    /**
+     * 3D Cross product of `a` and `b`
+     */
+    static cross(a, b) {
+        return new Pt_1.Pt((a[1] * b[2] - a[2] * b[1]), (a[2] * b[0] - a[0] * b[2]), (a[0] * b[1] - a[1] * b[0]));
+    }
+    /**
+     * Magnitude of `a`
+     */
+    static magnitude(a) {
+        return Math.sqrt(Vec.dot(a, a));
+    }
+    /**
+     * Unit vector of `a`. If magnitude of `a` is already known, pass it in the second paramter to optimize calculation.
+     */
+    static unit(a, magnitude = undefined) {
+        let m = (magnitude === undefined) ? Vec.magnitude(a) : magnitude;
+        if (m === 0)
+            throw new Error("Cannot calculate unit vector because magnitude is 0");
+        return Vec.divide(a, m);
+    }
+    /**
+     * Set `a` to its absolute value in each dimension
+     * @returns vector `a`
+     */
+    static abs(a) {
+        return Vec.map(a, Math.abs);
+    }
+    /**
+     * Set `a` to its floor value in each dimension
+     * @returns vector `a`
+     */
+    static floor(a) {
+        return Vec.map(a, Math.floor);
+    }
+    /**
+     * Set `a` to its ceiling value in each dimension
+     * @returns vector `a`
+     */
+    static ceil(a) {
+        return Vec.map(a, Math.ceil);
+    }
+    /**
+     * Set `a` to its rounded value in each dimension
+     * @returns vector `a`
+     */
+    static round(a) {
+        return Vec.map(a, Math.round);
+    }
+    /**
+     * Find the max value within a vector's dimensions
+     * @returns an object with `value` and `index` that specifies the max value and its corresponding dimension.
+     */
+    static max(a) {
+        let m = Number.MIN_VALUE;
+        let index = 0;
+        for (let i = 0, len = a.length; i < len; i++) {
+            m = Math.max(m, a[i]);
+            if (m === a[i])
+                index = i;
+        }
+        return { value: m, index: index };
+    }
+    /**
+     * Find the min value within a vector's dimensions
+     * @returns an object with `value` and `index` that specifies the min value and its corresponding dimension.
+     */
+    static min(a) {
+        let m = Number.MAX_VALUE;
+        let index = 0;
+        for (let i = 0, len = a.length; i < len; i++) {
+            m = Math.min(m, a[i]);
+            if (m === a[i])
+                index = i;
+        }
+        return { value: m, index: index };
+    }
+    /**
+     * Sum all the dimensions' values
+     */
+    static sum(a) {
+        let s = 0;
+        for (let i = 0, len = a.length; i < len; i++)
+            s += a[i];
+        return s;
+    }
+    /**
+     * Given a mapping function, update `a`'s value in each dimension
+     * @returns vector `a`
+     */
+    static map(a, fn) {
+        for (let i = 0, len = a.length; i < len; i++) {
+            a[i] = fn(a[i], i, a);
+        }
+        return a;
+    }
+}
+exports.Vec = Vec;
+/**
+ * Mat provides static function for matrix operations. It's not yet optimized but good enough to use.
+ */
+class Mat {
+    /**
+     * Matrix additions. Matrices should have the same rows and columns.
+     * @param a a group of Pt
+     * @param b a scalar number, an array of numeric arrays, or a group of Pt
+     * @returns a group with the same rows and columns as a and b
+     */
+    static add(a, b) {
+        if (typeof b != "number") {
+            if (a[0].length != b[0].length)
+                throw new Error("Cannot add matrix if rows' and columns' size don't match.");
+            if (a.length != b.length)
+                throw new Error("Cannot add matrix if rows' and columns' size don't match.");
+        }
+        let g = new Pt_1.Group();
+        let isNum = typeof b == "number";
+        for (let i = 0, len = a.length; i < len; i++) {
+            g.push(a[i].$add((isNum) ? b : b[i]));
+        }
+        return g;
+    }
+    /**
+     * Matrix multiplication
+     * @param a a Group of M Pts, each with K dimensions (M-rows, K-columns)
+     * @param b a scalar number, an array of numeric arrays, or a Group of K Pts, each with N dimensions (K-rows, N-columns) -- or if transposed is true, then N Pts with K dimensions
+     * @param transposed (Only applicable if it's not elementwise multiplication) If true, then a and b's columns should match (ie, each Pt should have the same dimensions). Default is `false`.
+     * @param elementwise if true, then the multiplication is done element-wise. Default is `false`.
+     * @returns If not elementwise, this will return a group with M Pt, each with N dimensions (M-rows, N-columns).
+     */
+    static multiply(a, b, transposed = false, elementwise = false) {
+        let g = new Pt_1.Group();
+        if (typeof b != "number") {
+            if (elementwise) {
+                if (a.length != b.length)
+                    throw new Error("Cannot multiply matrix element-wise because the matrices' sizes don't match.");
+                for (let ai = 0, alen = a.length; ai < alen; ai++) {
+                    g.push(a[ai].$multiply(b[ai]));
+                }
+            }
+            else {
+                if (!transposed && a[0].length != b.length)
+                    throw new Error("Cannot multiply matrix if rows in matrix-a don't match columns in matrix-b.");
+                if (transposed && a[0].length != b[0].length)
+                    throw new Error("Cannot multiply matrix if transposed and the columns in both matrices don't match.");
+                if (!transposed)
+                    b = Mat.transpose(b);
+                for (let ai = 0, alen = a.length; ai < alen; ai++) {
+                    let p = Pt_1.Pt.make(b.length, 0);
+                    for (let bi = 0, blen = b.length; bi < blen; bi++) {
+                        p[bi] = Vec.dot(a[ai], b[bi]);
+                    }
+                    g.push(p);
+                }
+            }
+        }
+        else {
+            for (let ai = 0, alen = a.length; ai < alen; ai++) {
+                g.push(a[ai].$multiply(b));
+            }
+        }
+        return g;
+    }
+    /**
+     * Zip one slice of an array of Pt. Imagine the Pts are organized in rows, then this function will take the values in a specific column.
+     * @param g a group of Pt
+     * @param idx index to zip at
+     * @param defaultValue a default value to fill if index out of bound. If not provided, it will throw an error instead.
+     */
+    static zipSlice(g, index, defaultValue = false) {
+        let z = [];
+        for (let i = 0, len = g.length; i < len; i++) {
+            if (g[i].length - 1 < index && defaultValue === false)
+                throw `Index ${index} is out of bounds`;
+            z.push(g[i][index] || defaultValue);
+        }
+        return new Pt_1.Pt(z);
+    }
+    /**
+     * Zip a group of Pt. eg, [[1,2],[3,4],[5,6]] => [[1,3,5],[2,4,6]]
+     * @param g a group of Pt
+     * @param defaultValue a default value to fill if index out of bound. If not provided, it will throw an error instead.
+     * @param useLongest If true, find the longest list of values in a Pt and use its length for zipping. Default is false, which uses the first item's length for zipping.
+     */
+    static zip(g, defaultValue = false, useLongest = false) {
+        let ps = new Pt_1.Group();
+        let len = (useLongest) ? g.reduce((a, b) => Math.max(a, b.length), 0) : g[0].length;
+        for (let i = 0; i < len; i++) {
+            ps.push(Mat.zipSlice(g, i, defaultValue));
+        }
+        return ps;
+    }
+    /**
+     * Same as `zip` function
+     */
+    static transpose(g, defaultValue = false, useLongest = false) {
+        return Mat.zip(g, defaultValue, useLongest);
+    }
+    /**
+     * Transform a 2D point given a 2x3 or 3x3 matrix
+     * @param pt a Pt to be transformed
+     * @param m 2x3 or 3x3 matrix
+     * @returns a new transformed Pt
+     */
+    static transform2D(pt, m) {
+        let x = pt[0] * m[0][0] + pt[1] * m[1][0] + m[2][0];
+        let y = pt[0] * m[0][1] + pt[1] * m[1][1] + m[2][1];
+        return new Pt_1.Pt(x, y);
+    }
+    /**
+     * Get a scale matrix for use in `transform2D`
+     */
+    static scale2DMatrix(x, y) {
+        return new Pt_1.Group(new Pt_1.Pt(x, 0, 0), new Pt_1.Pt(0, y, 0), new Pt_1.Pt(0, 0, 1));
+    }
+    /**
+     * Get a rotate matrix for use in `transform2D`
+     */
+    static rotate2DMatrix(cosA, sinA) {
+        return new Pt_1.Group(new Pt_1.Pt(cosA, sinA, 0), new Pt_1.Pt(-sinA, cosA, 0), new Pt_1.Pt(0, 0, 1));
+    }
+    /**
+     * Get a shear matrix for use in `transform2D`
+     */
+    static shear2DMatrix(tanX, tanY) {
+        return new Pt_1.Group(new Pt_1.Pt(1, tanX, 0), new Pt_1.Pt(tanY, 1, 0), new Pt_1.Pt(0, 0, 1));
+    }
+    /**
+     * Get a translate matrix for use in `transform2D`
+     */
+    static translate2DMatrix(x, y) {
+        return new Pt_1.Group(new Pt_1.Pt(1, 0, 0), new Pt_1.Pt(0, 1, 0), new Pt_1.Pt(x, y, 1));
+    }
+    /**
+     * Get a matrix to scale a point from an origin point. For use in `transform2D`
+     */
+    static scaleAt2DMatrix(sx, sy, at) {
+        let m = Mat.scale2DMatrix(sx, sy);
+        m[2][0] = -at[0] * sx + at[0];
+        m[2][1] = -at[1] * sy + at[1];
+        return m;
+    }
+    /**
+     * Get a matrix to rotate a point from an origin point. For use in `transform2D`
+     */
+    static rotateAt2DMatrix(cosA, sinA, at) {
+        let m = Mat.rotate2DMatrix(cosA, sinA);
+        m[2][0] = at[0] * (1 - cosA) + at[1] * sinA;
+        m[2][1] = at[1] * (1 - cosA) - at[0] * sinA;
+        return m;
+    }
+    /**
+     * Get a matrix to shear a point from an origin point. For use in `transform2D`
+     */
+    static shearAt2DMatrix(tanX, tanY, at) {
+        let m = Mat.shear2DMatrix(tanX, tanY);
+        m[2][0] = -at[1] * tanY;
+        m[2][1] = -at[0] * tanX;
+        return m;
+    }
+    /**
+     * Get a matrix to reflect a point along a line. For use in `transform2D`
+     * @param p1 first end point to define the reflection line
+     * @param p1 second end point to define the reflection line
+     */
+    static reflectAt2DMatrix(p1, p2) {
+        let intercept = Op_1.Line.intercept(p1, p2);
+        if (intercept == undefined) {
+            return [
+                new Pt_1.Pt([-1, 0, 0]),
+                new Pt_1.Pt([0, 1, 0]),
+                new Pt_1.Pt([p1[0] + p2[0], 0, 1])
+            ];
+        }
+        else {
+            let yi = intercept.yi;
+            let ang2 = Math.atan(intercept.slope) * 2;
+            let cosA = Math.cos(ang2);
+            let sinA = Math.sin(ang2);
+            return [
+                new Pt_1.Pt([cosA, sinA, 0]),
+                new Pt_1.Pt([sinA, -cosA, 0]),
+                new Pt_1.Pt([-yi * sinA, yi + yi * cosA, 1])
+            ];
+        }
+    }
+}
+exports.Mat = Mat;
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Pt_1 = __webpack_require__(0);
+/**
+ * Bound is a subclass of Group that represents a rectangular boundary.
+ * It includes some convenient properties such as `x`, `y`, bottomRight`, `center`, and `size`.
+ */
+class Bound extends Pt_1.Group {
+    /**
+     * Create a Bound. This is similar to the Group constructor.
+     * @param args a list of Pt as parameters
+     */
+    constructor(...args) {
+        super(...args);
+        this._center = new Pt_1.Pt();
+        this._size = new Pt_1.Pt();
+        this._topLeft = new Pt_1.Pt();
+        this._bottomRight = new Pt_1.Pt();
+        this._inited = false;
+        this.init();
+    }
+    /**
+     * Create a Bound from a [ClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) object.
+     * @param rect an object has top/left/bottom/right/width/height properties
+     * @returns a Bound object
+     */
+    static fromBoundingRect(rect) {
+        let b = new Bound(new Pt_1.Pt(rect.left || 0, rect.top || 0), new Pt_1.Pt(rect.right || 0, rect.bottom || 0));
+        if (rect.width && rect.height)
+            b.size = new Pt_1.Pt(rect.width, rect.height);
+        return b;
+    }
+    static fromGroup(g) {
+        if (g.length < 2)
+            throw new Error("Cannot create a Bound from a group that has less than 2 Pt");
+        return new Bound(g[0], g[g.length - 1]);
+    }
+    /**
+     * Initiate the bound's properties.
+     */
+    init() {
+        if (this.p1) {
+            this._size = this.p1.clone();
+            this._inited = true;
+        }
+        if (this.p1 && this.p2) {
+            let a = this.p1;
+            let b = this.p2;
+            this.topLeft = a.$min(b);
+            this._bottomRight = a.$max(b);
+            this._updateSize();
+            this._inited = true;
+        }
+    }
+    /**
+     * Clone this bound and return a new one
+     */
+    clone() {
+        return new Bound(this._topLeft.clone(), this._bottomRight.clone());
+    }
+    /**
+     * Recalculte size and center
+     */
+    _updateSize() {
+        this._size = this._bottomRight.$subtract(this._topLeft).abs();
+        this._updateCenter();
+    }
+    /**
+     * Recalculate center
+     */
+    _updateCenter() {
+        this._center = this._size.$multiply(0.5).add(this._topLeft);
+    }
+    /**
+     * Recalculate based on top-left position and size
+     */
+    _updatePosFromTop() {
+        this._bottomRight = this._topLeft.$add(this._size);
+        this._updateCenter();
+    }
+    /**
+     * Recalculate based on bottom-right position and size
+     */
+    _updatePosFromBottom() {
+        this._topLeft = this._bottomRight.$subtract(this._size);
+        this._updateCenter();
+    }
+    /**
+     * Recalculate based on center position and size
+     */
+    _updatePosFromCenter() {
+        let half = this._size.$multiply(0.5);
+        this._topLeft = this._center.$subtract(half);
+        this._bottomRight = this._center.$add(half);
+    }
+    get size() { return new Pt_1.Pt(this._size); }
+    set size(p) {
+        this._size = new Pt_1.Pt(p);
+        this._updatePosFromTop();
+    }
+    get center() { return new Pt_1.Pt(this._center); }
+    set center(p) {
+        this._center = new Pt_1.Pt(p);
+        this._updatePosFromCenter();
+    }
+    get topLeft() { return new Pt_1.Pt(this._topLeft); }
+    set topLeft(p) {
+        this._topLeft = new Pt_1.Pt(p);
+        this[0] = this._topLeft;
+        this._updateSize();
+    }
+    get bottomRight() { return new Pt_1.Pt(this._bottomRight); }
+    set bottomRight(p) {
+        this._bottomRight = new Pt_1.Pt(p);
+        this[1] = this._bottomRight;
+        this._updateSize();
+    }
+    get width() { return (this._size.length > 0) ? this._size.x : 0; }
+    set width(w) {
+        this._size.x = w;
+        this._updatePosFromTop();
+    }
+    get height() { return (this._size.length > 1) ? this._size.y : 0; }
+    set height(h) {
+        this._size.y = h;
+        this._updatePosFromTop();
+    }
+    get depth() { return (this._size.length > 2) ? this._size.z : 0; }
+    set depth(d) {
+        this._size.z = d;
+        this._updatePosFromTop();
+    }
+    get x() { return this.topLeft.x; }
+    get y() { return this.topLeft.y; }
+    get z() { return this.topLeft.z; }
+    get inited() { return this._inited; }
+    /**
+     * If the Group elements are changed, call this function to update the Bound's properties.
+     * It's preferable to change the topLeft/bottomRight etc properties instead of changing the Group array directly.
+     */
+    update() {
+        this._topLeft = this[0];
+        this._bottomRight = this[1];
+        this._updateSize();
+        return this;
+    }
+}
+exports.Bound = Bound;
+
+
+/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
+const Util_1 = __webpack_require__(1);
 /**
- * Form is an abstract class that represents a form that's used in a Space for expressions.
- */
+* Form is an abstract class that represents a form that's used in a Space for expressions.
+*/
 class Form {
+    constructor() {
+        this._ready = false;
+    }
+    /**
+    * get whether the Form has received the Space's rendering context
+    */
+    get ready() { return this._ready; }
+    /**
+     * Check number of items in a Group against a required number
+     * @param pts
+     */
+    static _checkSize(pts, required = 2) {
+        if (pts.length < required) {
+            Util_1.Util.warn("Requires 2 or more Pts in this Group.");
+            return false;
+        }
+        return true;
+    }
 }
 exports.Form = Form;
 /**
- * VisualForm is an abstract class that represents a form that can be used to express Pts visually.
- * For example, CanvasForm is an implementation of VisualForm that draws on CanvasSpace which represents a html canvas.
- */
+* VisualForm is an abstract class that represents a form that can be used to express Pts visually.
+* For example, CanvasForm is an implementation of VisualForm that draws on CanvasSpace which represents a html canvas.
+*/
 class VisualForm extends Form {
     constructor() {
         super(...arguments);
         this._filled = true;
         this._stroked = true;
-        this._font = new Font();
+        this._font = new Font(14, "sans-serif");
     }
     get filled() { return this._filled; }
     set filled(b) { this._filled = b; }
     get stroked() { return this._stroked; }
     set stroked(b) { this._stroked = b; }
     get currentFont() { return this._font; }
+    _multiple(groups, shape, ...rest) {
+        if (!groups)
+            return this;
+        for (let i = 0, len = groups.length; i < len; i++) {
+            this[shape](groups[i], ...rest);
+        }
+        return this;
+    }
+    /**
+    * Set fill color (not implemented)
+    */
+    fill(c) {
+        return this;
+    }
+    /**
+    * Set current fill style and without stroke.
+    * @example `form.fillOnly("#F90")`, `form.fillOnly("rgba(0,0,0,.5")`
+    * @param c fill color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle))
+    */
+    fillOnly(c) {
+        this.stroke(false);
+        return this.fill(c);
+    }
+    /**
+    * Set stroke style (not implemented)
+    */
+    stroke(c, width, linejoin, linecap) {
+        return this;
+    }
+    /**
+    * Set current stroke style and without fill.
+    * @example `form.strokeOnly("#F90")`, `form.strokeOnly("#000", 0.5, 'round', 'square')`
+    * @param c stroke color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle)
+    */
+    strokeOnly(c, width, linejoin, linecap) {
+        this.fill(false);
+        return this.stroke(c, width, linejoin, linecap);
+    }
+    /**
+    * Draw multiple points at once
+    * @param pts an array of Pt or an array of number arrays
+    * @param radius radius of the point. Default is 5.
+    * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
+    */
+    points(pts, radius, shape) {
+        if (!pts)
+            return;
+        for (let i = 0, len = pts.length; i < len; i++) {
+            this.point(pts[i], radius, shape);
+        }
+        return this;
+    }
+    /**
+    * Draw multiple circles at once
+    * @param groups an array of Groups that defines multiple circles
+    */
+    circles(groups) {
+        return this._multiple(groups, "circle");
+    }
+    /**
+    * Draw multiple squares at once
+    * @param groups an array of Groups that defines multiple circles
+    */
+    squares(groups) {
+        return this._multiple(groups, "square");
+    }
+    /**
+    * Draw multiple lines at once
+    * @param groups An array of Groups of Pts
+    */
+    lines(groups) {
+        return this._multiple(groups, "line");
+    }
+    /**
+    * Draw multiple polygons at once
+    * @param groups An array of Groups of Pts
+    */
+    polygons(groups) {
+        return this._multiple(groups, "polygon");
+    }
+    /**
+    * Draw multiple rectangles at once
+    * @param groups An array of Groups of Pts
+    */
+    rects(groups) {
+        return this._multiple(groups, "rect");
+    }
 }
 exports.VisualForm = VisualForm;
 /**
- * Font class lets you create a specific font style with properties for its size and style
- */
+* Font class lets you create a specific font style with properties for its size and style
+*/
 class Font {
     /**
-     * Create a font style
-     * @param size font size. Defaults is 12px.
-     * @param face Optional font-family, use css-like string such as "Helvetica" or "Helvetica, sans-serif". Default is "sans-serif".
-     * @param weight Optional font weight such as "bold". Default is "" (none).
-     * @param style Optional font style such as "italic". Default is "" (none).
-     * @param lineHeight Optional line height. Default is 1.5.
-     * @example `new Font(12, "Frutiger, sans-serif", "bold", "underline", 1.5)`
-     */
+    * Create a font style
+    * @param size font size. Defaults is 12px.
+    * @param face Optional font-family, use css-like string such as "Helvetica" or "Helvetica, sans-serif". Default is "sans-serif".
+    * @param weight Optional font weight such as "bold". Default is "" (none).
+    * @param style Optional font style such as "italic". Default is "" (none).
+    * @param lineHeight Optional line height. Default is 1.5.
+    * @example `new Font(12, "Frutiger, sans-serif", "bold", "underline", 1.5)`
+    */
     constructor(size = 12, face = "sans-serif", weight = "", style = "", lineHeight = 1.5) {
         this.size = size;
         this.face = face;
@@ -25704,12 +26086,12 @@ class Font {
         this.lineHeight = lineHeight;
     }
     /**
-     * Get a string representing the font style, in css-like string such as "italic bold 12px/1.5 sans-serif"
-     */
+    * Get a string representing the font style, in css-like string such as "italic bold 12px/1.5 sans-serif"
+    */
     get value() { return `${this.style} ${this.weight} ${this.size}px/${this.lineHeight} ${this.face}`; }
     /**
-     * Get a string representing the font style, in css-like string such as "italic bold 12px/1.5 sans-serif"
-     */
+    * Get a string representing the font style, in css-like string such as "italic bold 12px/1.5 sans-serif"
+    */
     toString() { return this.value; }
 }
 exports.Font = Font;
@@ -25722,14 +26104,15 @@ exports.Font = Font;
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
-const Bound_1 = __webpack_require__(4);
+const Bound_1 = __webpack_require__(5);
 const Pt_1 = __webpack_require__(0);
+const UI_1 = __webpack_require__(14);
 /**
- * Space is an abstract class that represents a general context for expressing Pts.
- * See [Space guide](../../guide/Space-0500.html) for details.
- */
+* Space is an abstract class that represents a general context for expressing Pts.
+* See [Space guide](../../guide/Space-0500.html) for details.
+*/
 class Space {
     constructor() {
         this.id = "space";
@@ -25741,24 +26124,26 @@ class Space {
         this._pause = false;
         this._refresh = undefined;
         this._pointer = new Pt_1.Pt();
+        this._isReady = false;
+        this._playing = false;
     }
     /**
-     * Set whether the rendering should be repainted on each frame
-     * @param b a boolean value to set whether to repaint each frame
-     */
+    * Set whether the rendering should be repainted on each frame
+    * @param b a boolean value to set whether to repaint each frame
+    */
     refresh(b) {
         this._refresh = b;
         return this;
     }
     /**
-     * Add an IPlayer to this space. An IPlayer can define the following callback functions:
-     * - `animate( time, ftime, space )`
-     * - `start(bound, spacE)`
-     * - `resize( size, event )`
-     * - `action( type, x, y, event )`
-     * Subclasses of Space may define other callback functions.
-     * @param player an IPlayer object with animate function, or simply a function(time, ftime){}
-     */
+    * Add an IPlayer to this space. An IPlayer can define the following callback functions:
+    * - `animate( time, ftime, space )`
+    * - `start(bound, space)`
+    * - `resize( size, event )`
+    * - `action( type, x, y, event )`
+    * Subclasses of Space may define other callback functions.
+    * @param player an IPlayer object with animate function, or simply a function(time, ftime){}
+    */
     add(p) {
         let player = (typeof p == "function") ? { animate: p } : p;
         let k = this.playerCount++;
@@ -25773,25 +26158,25 @@ class Space {
         return this;
     }
     /**
-     * Remove a player from this Space
-     * @param player an IPlayer that has an `animateID` property
-     */
+    * Remove a player from this Space
+    * @param player an IPlayer that has an `animateID` property
+    */
     remove(player) {
         delete this.players[player.animateID];
         return this;
     }
     /**
-     * Remove all players from this Space
-     */
+    * Remove all players from this Space
+    */
     removeAll() {
         this.players = {};
         return this;
     }
     /**
-     * Main play loop. This implements window.requestAnimationFrame and calls it recursively.
-     * Override this `play()` function to implemenet your own animation loop.
-     * @param time current time
-     */
+    * Main play loop. This implements window.requestAnimationFrame and calls it recursively.
+    * Override this `play()` function to implemenet your own animation loop.
+    * @param time current time
+    */
     play(time = 0) {
         this._animID = requestAnimationFrame(this.play.bind(this));
         if (this._pause)
@@ -25803,271 +26188,126 @@ class Space {
         }
         catch (err) {
             cancelAnimationFrame(this._animID);
+            this._playing = false;
             throw err;
         }
         return this;
     }
     /**
-     * Replay the animation after `stop()`. This resets the end-time counter.
-     * You may also use `pause()` and `resume()` for temporary pause.
-     */
+    * Replay the animation after `stop()`. This resets the end-time counter.
+    * You may also use `pause()` and `resume()` for temporary pause.
+    */
     replay() {
         this._time.end = -1;
         this.play();
     }
     /**
-     * Main animate function. This calls all the items to perform
-     * @param time current time
-     */
+    * Main animate function. This calls all the items to perform
+    * @param time current time
+    */
     playItems(time) {
+        this._playing = true;
         // clear before draw if refresh is true
         if (this._refresh)
             this.clear();
         // animate all players
-        for (let k in this.players) {
-            if (this.players[k].animate)
-                this.players[k].animate(time, this._time.diff, this);
+        if (this._isReady) {
+            for (let k in this.players) {
+                if (this.players[k].animate)
+                    this.players[k].animate(time, this._time.diff, this);
+            }
         }
         // stop if time ended
         if (this._time.end >= 0 && time > this._time.end) {
             cancelAnimationFrame(this._animID);
+            this._playing = false;
         }
     }
     /**
-     * Pause the animation
-     * @param toggle a boolean value to set if this function call should be a toggle (between pause and resume)
-     */
+    * Pause the animation
+    * @param toggle a boolean value to set if this function call should be a toggle (between pause and resume)
+    */
     pause(toggle = false) {
         this._pause = (toggle) ? !this._pause : true;
         return this;
     }
     /**
-     * Resume the pause animation
-     */
+    * Resume the pause animation
+    */
     resume() {
         this._pause = false;
         return this;
     }
     /**
-     * Specify when the animation should stop: immediately, after a time period, or never stops.
-     * @param t a value in millisecond to specify a time period to play before stopping, or `-1` to play forever, or `0` to end immediately. Default is 0 which will stop the animation immediately.
-     */
+    * Specify when the animation should stop: immediately, after a time period, or never stops.
+    * @param t a value in millisecond to specify a time period to play before stopping, or `-1` to play forever, or `0` to end immediately. Default is 0 which will stop the animation immediately.
+    */
     stop(t = 0) {
         this._time.end = t;
         return this;
     }
     /**
-     * Play animation loop, and then stop after `duration` time has passed.
-     * @param duration a value in millisecond to specify a time period to play before stopping, or `-1` to play forever
-     */
+    * Play animation loop, and then stop after `duration` time has passed.
+    * @param duration a value in millisecond to specify a time period to play before stopping, or `-1` to play forever
+    */
     playOnce(duration = 5000) {
         this.play();
         this.stop(duration);
         return this;
     }
     /**
-     * Get this space's bounding box
+    * Custom rendering
+    * @param context rendering context
+    */
+    render(context) {
+        if (this._renderFunc)
+            this._renderFunc(context, this);
+        return this;
+    }
+    /**
+    * Set a custom rendering `function(graphics_context, canvas_space)` if needed
+    */
+    set customRendering(f) { this._renderFunc = f; }
+    get customRendering() { return this._renderFunc; }
+    /**
+     * Get a boolean to indicate whether the animation is playing
      */
+    get isPlaying() { return this._playing; }
+    /**
+    * Get this space's bounding box
+    */
     get outerBound() { return this.bound.clone(); }
     /**
-     * The bounding box of the canvas
-     */
+    * The bounding box of the canvas
+    */
     get innerBound() { return new Bound_1.Bound(Pt_1.Pt.make(this.size.length, 0), this.size.clone()); }
     /**
-     * Get the size of this bounding box as a Pt
-     */
+    * Get the size of this bounding box as a Pt
+    */
     get size() { return this.bound.size.clone(); }
     /**
-     * Get the size of this bounding box as a Pt
-     */
+    * Get the size of this bounding box as a Pt
+    */
     get center() { return this.size.divide(2); }
     /**
-     * Get width of canvas
-     */
+    * Get width of canvas
+    */
     get width() { return this.bound.width; }
     /**
-     * Get height of canvas
-     */
+    * Get height of canvas
+    */
     get height() { return this.bound.height; }
 }
 exports.Space = Space;
-
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-// Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
-Object.defineProperty(exports, "__esModule", { value: true });
-const Space_1 = __webpack_require__(7);
-const Form_1 = __webpack_require__(6);
-const Bound_1 = __webpack_require__(4);
-const Pt_1 = __webpack_require__(0);
-const Util_1 = __webpack_require__(1);
-/**
-* CanvasSpace is an implementation of the abstract class Space. It represents a space for HTML Canvas.
-* Learn more about the concept of Space in [this guide](..guide/Space-0500.html)
-*/
-class CanvasSpace extends Space_1.Space {
-    /**
-    * Create a CanvasSpace which represents a HTML Canvas Space
-    * @param elem Specify an element by its "id" attribute as string, or by the element object itself. An element can be an existing `<canvas>`, or a `<div>` container in which a new `<canvas>` will be created. If left empty, a `<div id="pt_container"><canvas id="pt" /></div>` will be added to DOM. Use css to customize its appearance if needed.
-    * @param callback an optional callback `function(boundingBox, spaceElement)` to be called when canvas is appended and ready. Alternatively, a "ready" event will also be fired from the `<canvas>` element when it's appended, which can be traced with `spaceInstance.canvas.addEventListener("ready")`
-    * @example `new CanvasSpace( "#myElementID" )`
-    */
-    constructor(elem, callback) {
-        super();
-        this._pixelScale = 1;
-        this._autoResize = true;
-        this._bgcolor = "#e1e9f0";
-        this._offscreen = false;
+class MultiTouchSpace extends Space {
+    constructor() {
+        super(...arguments);
         // track mouse dragging
         this._pressed = false;
         this._dragged = false;
         this._hasMouse = false;
         this._hasTouch = false;
-        this._renderFunc = undefined;
-        this._isReady = false;
-        var _selector = null;
-        var _existed = false;
-        this.id = "pt";
-        // check element or element id string
-        if (elem instanceof Element) {
-            _selector = elem;
-            this.id = "pts_existing_space";
-        }
-        else {
-            ;
-            _selector = document.querySelector(elem);
-            _existed = true;
-            this.id = elem;
-        }
-        // if selector is not defined, create a canvas
-        if (!_selector) {
-            this._container = this._createElement("div", this.id + "_container");
-            this._canvas = this._createElement("canvas", this.id);
-            this._container.appendChild(this._canvas);
-            document.body.appendChild(this._container);
-            _existed = false;
-            // if selector is element but not canvas, create a canvas inside it
-        }
-        else if (_selector.nodeName.toLowerCase() != "canvas") {
-            this._container = _selector;
-            this._canvas = this._createElement("canvas", this.id + "_canvas");
-            this._container.appendChild(this._canvas);
-            // if selector is an existing canvas
-        }
-        else {
-            this._canvas = _selector;
-            this._container = _selector.parentElement;
-            this._autoResize = false;
-        }
-        // if size is known then set it immediately
-        // if (_existed) {
-        // let b = this._container.getBoundingClientRect();
-        // this.resize( Bound.fromBoundingRect(b) );
-        // }
-        // no mutation observer, so we set a timeout for ready event
-        setTimeout(this._ready.bind(this, callback), 50);
-        // store canvas 2d rendering context
-        this._ctx = this._canvas.getContext('2d');
     }
-    /**
-    * Helper function to create a DOM element
-    * @param elem element tag name
-    * @param id element id attribute
-    */
-    _createElement(elem = "div", id) {
-        let d = document.createElement(elem);
-        d.setAttribute("id", id);
-        return d;
-    }
-    /**
-    * Handle callbacks after element is mounted in DOM
-    * @param callback
-    */
-    _ready(callback) {
-        if (!this._container)
-            throw new Error(`Cannot initiate #${this.id} element`);
-        this._isReady = true;
-        let b = (this._autoResize) ? this._container.getBoundingClientRect() : this._canvas.getBoundingClientRect();
-        if (b)
-            this.resize(Bound_1.Bound.fromBoundingRect(b));
-        this.clear(this._bgcolor);
-        this._canvas.dispatchEvent(new Event("ready"));
-        for (let k in this.players) {
-            if (this.players[k].start)
-                this.players[k].start(this.bound.clone(), this);
-        }
-        this._pointer = this.center;
-        if (callback)
-            callback(this.bound, this._canvas);
-    }
-    /**
-    * Set up various options for CanvasSpace. The `opt` parameter is an object with the following fields. This is usually set during instantiation, eg `new CanvasSpace(...).setup( { opt } )`
-    * @param opt an object with optional settings, as follows.
-    * @param opt.bgcolor a hex or rgba string to set initial background color of the canvas, or use `false` or "transparent" to set a transparent background. You may also change it later with `clear()`
-    * @param opt.resize a boolean to set whether `<canvas>` size should auto resize to match its container's size. You can also set it manually with `autoSize()`
-    * @param opt.retina a boolean to set if device pixel scaling should be used. This may make drawings on retina displays look sharper but may reduce performance slightly. Default is `true`.
-    * @param opt.offscreen a boolean to set if a duplicate canvas should be created for offscreen rendering. Default is `false`.
-    * @example `space.setup({ bgcolor: "#f00", retina: true, resize: true })`
-    */
-    setup(opt) {
-        if (opt.bgcolor)
-            this._bgcolor = opt.bgcolor;
-        this.autoResize = (opt.resize != undefined) ? opt.resize : false;
-        if (opt.retina !== false) {
-            let r1 = window.devicePixelRatio || 1;
-            let r2 = this._ctx.webkitBackingStorePixelRatio || this._ctx.mozBackingStorePixelRatio || this._ctx.msBackingStorePixelRatio || this._ctx.oBackingStorePixelRatio || this._ctx.backingStorePixelRatio || 1;
-            this._pixelScale = r1 / r2;
-        }
-        if (opt.offscreen) {
-            this._offscreen = true;
-            this._offCanvas = this._createElement("canvas", this.id + "_offscreen");
-            this._offCtx = this._offCanvas.getContext('2d');
-        }
-        else {
-            this._offscreen = false;
-        }
-        return this;
-    }
-    /**
-    * Set whether the canvas element should resize when its container is resized.
-    * @param auto a boolean value indicating if auto size is set
-    */
-    set autoResize(auto) {
-        this._autoResize = auto;
-        if (auto) {
-            window.addEventListener('resize', this._resizeHandler.bind(this));
-        }
-        else {
-            window.removeEventListener('resize', this._resizeHandler.bind(this));
-        }
-    }
-    get autoResize() { return this._autoResize; }
-    /**
-    * `pixelScale` property returns a number that let you determine if the screen is "retina" (when value >= 2)
-    */
-    get pixelScale() {
-        return this._pixelScale;
-    }
-    /**
-    * Check if an offscreen canvas is created
-    */
-    get hasOffscreen() {
-        return this._offscreen;
-    }
-    /**
-    * Get the rendering context of offscreen canvas (if created via `setup()`)
-    */
-    get offscreenCtx() { return this._offCtx; }
-    /**
-    * Get the offscreen canvas element
-    */
-    get offscreenCanvas() { return this._offCanvas; }
     /**
     * Get the mouse or touch pointer that stores the last action
     */
@@ -26075,126 +26315,6 @@ class CanvasSpace extends Space_1.Space {
         let p = this._pointer.clone();
         p.id = this._pointer.id;
         return p;
-    }
-    /**
-    * Get a new `CanvasForm` for drawing
-    * @see `CanvasForm`
-    */
-    getForm() { return new CanvasForm(this); }
-    /**
-    * Get the html canvas element
-    */
-    get element() {
-        return this._canvas;
-    }
-    /**
-    * Get the parent element that contains the canvas element
-    */
-    get parent() {
-        return this._container;
-    }
-    /**
-    * Get the rendering context of canvas
-    */
-    get ctx() { return this._ctx; }
-    /**
-    * Get the canvas element in this space
-    */
-    get canvas() { return this._canvas; }
-    /**
-    * This overrides Space's `resize` function. It's used as a callback function for window's resize event and not usually called directly. You can keep track of resize events with `resize: (bound ,evt)` callback in your player objects (See `Space`'s `add()` function).
-    * @param b a Bound object to resize to
-    * @param evt Optionally pass a resize event
-    */
-    resize(b, evt) {
-        this.bound = b;
-        this._canvas.width = this.bound.size.x * this._pixelScale;
-        this._canvas.height = this.bound.size.y * this._pixelScale;
-        this._canvas.style.width = Math.floor(this.bound.size.x) + "px";
-        this._canvas.style.height = Math.floor(this.bound.size.y) + "px";
-        if (this._offscreen) {
-            this._offCanvas.width = this.bound.size.x * this._pixelScale;
-            this._offCanvas.height = this.bound.size.y * this._pixelScale;
-            // this._offCanvas.style.width = Math.floor(this.bound.size.x) + "px";
-            // this._offCanvas.style.height = Math.floor(this.bound.size.y) + "px";
-        }
-        if (this._pixelScale != 1) {
-            this._ctx.scale(this._pixelScale, this._pixelScale);
-            this._ctx.translate(0.5, 0.5);
-            if (this._offscreen) {
-                this._offCtx.scale(this._pixelScale, this._pixelScale);
-                this._offCtx.translate(0.5, 0.5);
-            }
-        }
-        for (let k in this.players) {
-            if (this.players.hasOwnProperty(k)) {
-                let p = this.players[k];
-                if (p.resize)
-                    p.resize(this.bound, evt);
-            }
-        }
-        ;
-        this.render(this._ctx);
-        return this;
-    }
-    /**
-    * Window resize handling
-    * @param evt
-    */
-    _resizeHandler(evt) {
-        let b = (this._autoResize) ? this._container.getBoundingClientRect() : this._canvas.getBoundingClientRect();
-        if (b)
-            this.resize(Bound_1.Bound.fromBoundingRect(b), evt);
-    }
-    /**
-    * Clear the canvas with its background color. Overrides Space's `clear` function.
-    * @param bg Optionally specify a custom background color in hex or rgba string, or "transparent". If not defined, it will use its `bgcolor` property as background color to clear the canvas.
-    */
-    clear(bg) {
-        if (bg)
-            this._bgcolor = bg;
-        let lastColor = this._ctx.fillStyle;
-        if (this._bgcolor && this._bgcolor != "transparent") {
-            this._ctx.fillStyle = this._bgcolor;
-            this._ctx.fillRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
-        }
-        else {
-            this._ctx.clearRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
-        }
-        this._ctx.fillStyle = lastColor;
-        return this;
-    }
-    /**
-    * Similiar to `clear()` but clear the offscreen canvas instead
-    * @param bg Optionally specify a custom background color in hex or rgba string, or "transparent". If not defined, it will use its `bgcolor` property as background color to clear the canvas.
-    */
-    clearOffscreen(bg) {
-        if (this._offscreen) {
-            if (bg) {
-                this._offCtx.fillStyle = bg;
-                this._offCtx.fillRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
-            }
-            else {
-                this._offCtx.clearRect(-1, -1, this._offCanvas.width + 1, this._offCanvas.height + 1);
-            }
-        }
-        return this;
-    }
-    /**
-    * Main animation function. Call `Space.playItems`.
-    * @param time current time
-    */
-    playItems(time) {
-        if (this._isReady) {
-            this._ctx.save();
-            if (this._offscreen)
-                this._offCtx.save();
-            super.playItems(time);
-            this._ctx.restore();
-            if (this._offscreen)
-                this._offCtx.restore();
-            this.render(this._ctx);
-        }
     }
     /**
     * Bind event listener in canvas element. You can also use `bindMouse` or `bindTouch` to bind mouse or touch events conveniently.
@@ -26213,7 +26333,7 @@ class CanvasSpace extends Space_1.Space {
         this._canvas.removeEventListener(evt, callback);
     }
     /**
-    * A convenient method to bind (or unbind) all mouse events in canvas element. All "players" added to this space that implements an `action` callback property will receive mouse event callbacks. The types of mouse actions are: "up", "down", "move", "drag", "drop", "over", and "out". See `Space`'s `add()` function fore more.
+    * A convenient method to bind (or unbind) all mouse events in canvas element. All "players" added to this space that implements an `action` callback property will receive mouse event callbacks. The types of mouse actions are defined by UIPointerActions constants: "up", "down", "move", "drag", "drop", "over", and "out". See `Space`'s `add()` function for more details.
     * @param _bind a boolean value to bind mouse events if set to `true`. If `false`, all mouse events will be unbound. Default is true.
     * @see Space`'s [`add`](./_space_.space.html#add) function
     */
@@ -26276,7 +26396,7 @@ class CanvasSpace extends Space_1.Space {
     }
     /**
     * Go through all the `players` and call its `action` callback function
-    * @param type "up", "down", "move", "drag", "drop", "over", and "out"
+    * @param type an UIPointerActions constant or string: "up", "down", "move", "drag", "drop", "over", and "out"
     * @param evt mouse or touch event
     */
     _mouseAction(type, evt) {
@@ -26285,8 +26405,8 @@ class CanvasSpace extends Space_1.Space {
             for (let k in this.players) {
                 if (this.players.hasOwnProperty(k)) {
                     let v = this.players[k];
-                    px = evt.offsetX || evt.layerX;
-                    py = evt.offsetY || evt.layerY;
+                    px = evt.pageX - this.outerBound.x;
+                    py = evt.pageY - this.outerBound.y;
                     if (v.action)
                         v.action(type, px, py, evt);
                 }
@@ -26298,9 +26418,8 @@ class CanvasSpace extends Space_1.Space {
                     let v = this.players[k];
                     let c = evt.changedTouches && evt.changedTouches.length > 0;
                     let touch = evt.changedTouches.item(0);
-                    let bound = this._canvas.getBoundingClientRect();
-                    px = (c) ? touch.clientX - bound.left : 0;
-                    py = (c) ? touch.clientY - bound.top : 0;
+                    px = (c) ? touch.pageX - this.outerBound.x : 0;
+                    py = (c) ? touch.pageY - this.outerBound.y : 0;
                     if (v.action)
                         v.action(type, px, py, evt);
                 }
@@ -26316,7 +26435,7 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _mouseDown(evt) {
-        this._mouseAction("down", evt);
+        this._mouseAction(UI_1.UIPointerActions.down, evt);
         this._pressed = true;
         return false;
     }
@@ -26325,9 +26444,9 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _mouseUp(evt) {
-        this._mouseAction("up", evt);
+        this._mouseAction(UI_1.UIPointerActions.up, evt);
         if (this._dragged)
-            this._mouseAction("drop", evt);
+            this._mouseAction(UI_1.UIPointerActions.down, evt);
         this._pressed = false;
         this._dragged = false;
         return false;
@@ -26337,10 +26456,10 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _mouseMove(evt) {
-        this._mouseAction("move", evt);
+        this._mouseAction(UI_1.UIPointerActions.move, evt);
         if (this._pressed) {
             this._dragged = true;
-            this._mouseAction("drag", evt);
+            this._mouseAction(UI_1.UIPointerActions.drag, evt);
         }
         return false;
     }
@@ -26349,7 +26468,7 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _mouseOver(evt) {
-        this._mouseAction("over", evt);
+        this._mouseAction(UI_1.UIPointerActions.over, evt);
         return false;
     }
     /**
@@ -26357,9 +26476,9 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _mouseOut(evt) {
-        this._mouseAction("out", evt);
+        this._mouseAction(UI_1.UIPointerActions.out, evt);
         if (this._dragged)
-            this._mouseAction("drop", evt);
+            this._mouseAction(UI_1.UIPointerActions.drop, evt);
         this._dragged = false;
         return false;
     }
@@ -26368,24 +26487,1096 @@ class CanvasSpace extends Space_1.Space {
     * @param evt
     */
     _touchMove(evt) {
-        evt.preventDefault();
         this._mouseMove(evt);
+        evt.preventDefault();
         return false;
     }
+}
+exports.MultiTouchSpace = MultiTouchSpace;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Space_1 = __webpack_require__(7);
+const Form_1 = __webpack_require__(6);
+const Bound_1 = __webpack_require__(5);
+const Util_1 = __webpack_require__(1);
+const Pt_1 = __webpack_require__(0);
+/**
+ * A Space for DOM elements
+ */
+class DOMSpace extends Space_1.MultiTouchSpace {
     /**
-    * Custom rendering
-    * @param context rendering context
+    * Create a DOMSpace which represents a Space for DOM elements
+    * @param elem Specify an element by its "id" attribute as string, or by the element object itself. Use css to customize its appearance if needed.
+    * @param callback an optional callback `function(boundingBox, spaceElement)` to be called when canvas is appended and ready. Alternatively, a "ready" event will also be fired from the element when it's appended, which can be traced with `spaceInstance.canvas.addEventListener("ready")`
+    * @example `new DOMSpace( "#myElementID" )`
     */
-    render(context) {
-        if (this._renderFunc)
-            this._renderFunc(context, this);
+    constructor(elem, callback) {
+        super();
+        this.id = "domspace";
+        this._autoResize = true;
+        this._bgcolor = "#e1e9f0";
+        this._css = {};
+        var _selector = null;
+        var _existed = false;
+        this.id = "pts";
+        // check element or element id string
+        if (elem instanceof Element) {
+            _selector = elem;
+            this.id = "pts_existing_space";
+        }
+        else {
+            _selector = document.querySelector(elem);
+            _existed = true;
+            this.id = elem.substr(1);
+        }
+        // if selector is not defined, create a canvas
+        if (!_selector) {
+            this._container = DOMSpace.createElement("div", "pts_container");
+            this._canvas = DOMSpace.createElement("div", "pts_element");
+            this._container.appendChild(this._canvas);
+            document.body.appendChild(this._container);
+            _existed = false;
+        }
+        else {
+            this._canvas = _selector;
+            this._container = _selector.parentElement;
+        }
+        // no mutation observer, so we set a timeout for ready event
+        setTimeout(this._ready.bind(this, callback), 50);
+    }
+    /**
+    * Helper function to create a DOM element
+    * @param elem element tag name
+    * @param id element id attribute
+    * @param appendTo Optional, if specified, the created element will be appended to this element
+    */
+    static createElement(elem = "div", id, appendTo) {
+        let d = document.createElement(elem);
+        if (id)
+            d.setAttribute("id", id);
+        if (appendTo && appendTo.appendChild)
+            appendTo.appendChild(d);
+        return d;
+    }
+    /**
+    * Handle callbacks after element is mounted in DOM
+    * @param callback
+    */
+    _ready(callback) {
+        if (!this._container)
+            throw new Error(`Cannot initiate #${this.id} element`);
+        this._isReady = true;
+        this._resizeHandler(null);
+        this.clear(this._bgcolor);
+        this._canvas.dispatchEvent(new Event("ready"));
+        for (let k in this.players) {
+            if (this.players.hasOwnProperty(k)) {
+                if (this.players[k].start)
+                    this.players[k].start(this.bound.clone(), this);
+            }
+        }
+        this._pointer = this.center;
+        this.refresh(false); // No need to clear and redraw for every frame in DOM
+        if (callback)
+            callback(this.bound, this._canvas);
+    }
+    /**
+    * Set up various options for DOMSpace. The `opt` parameter is an object with the following fields. This is usually set during instantiation, eg `new DOMSpace(...).setup( { opt } )`
+    * @param opt an object with optional settings, as follows.
+    * @param opt.bgcolor a hex or rgba string to set initial background color of the canvas, or use `false` or "transparent" to set a transparent background. You may also change it later with `clear()`
+    * @param opt.resize a boolean to set whether `<canvas>` size should auto resize to match its container's size. You can also set it manually with `autoSize()`
+    * @example `space.setup({ bgcolor: "#f00", resize: true })`
+    */
+    setup(opt) {
+        if (opt.bgcolor) {
+            this._bgcolor = opt.bgcolor;
+        }
+        this.autoResize = (opt.resize != undefined) ? opt.resize : false;
         return this;
     }
     /**
-    * Set a custom rendering `function(graphics_context, canvas_space)` if needed
+     * Not implemented. See SVGSpace and HTMLSpace for implementation
+     */
+    getForm() {
+        return null;
+    }
+    /**
+    * Set whether the canvas element should resize when its container is resized.
+    * @param auto a boolean value indicating if auto size is set
     */
-    set customRendering(f) { this._renderFunc = f; }
-    get customRendering() { return this._renderFunc; }
+    set autoResize(auto) {
+        this._autoResize = auto;
+        if (auto) {
+            window.addEventListener('resize', this._resizeHandler.bind(this));
+        }
+        else {
+            delete this._css['width'];
+            delete this._css['height'];
+            window.removeEventListener('resize', this._resizeHandler.bind(this));
+        }
+    }
+    get autoResize() { return this._autoResize; }
+    /**
+    * This overrides Space's `resize` function. It's used as a callback function for window's resize event and not usually called directly. You can keep track of resize events with `resize: (bound ,evt)` callback in your player objects (See `Space`'s `add()` function).
+    * @param b a Bound object to resize to
+    * @param evt Optionally pass a resize event
+    */
+    resize(b, evt) {
+        this.bound = b;
+        this.styles({ width: `${b.width}px`, height: `${b.height}px` }, true);
+        for (let k in this.players) {
+            if (this.players.hasOwnProperty(k)) {
+                let p = this.players[k];
+                if (p.resize)
+                    p.resize(this.bound, evt);
+            }
+        }
+        ;
+        return this;
+    }
+    /**
+    * Window resize handling
+    * @param evt
+    */
+    _resizeHandler(evt) {
+        let b = Bound_1.Bound.fromBoundingRect(this._container.getBoundingClientRect());
+        if (this._autoResize) {
+            this.styles({ width: "100%", height: "100%" }, true);
+        }
+        else {
+            this.styles({ width: `${b.width}px`, height: `${b.height}px` }, true);
+        }
+        this.resize(b, evt);
+    }
+    /**
+    * Get this DOM element
+    */
+    get element() {
+        return this._canvas;
+    }
+    /**
+    * Get the parent DOM element that contains this DOM element
+    */
+    get parent() {
+        return this._container;
+    }
+    /**
+    * A property to indicate if the Space is ready
+    */
+    get ready() { return this._isReady; }
+    /**
+    * Clear the element's contents, and ptionally set a new backgrounc color. Overrides Space's `clear` function.
+    * @param bg Optionally specify a custom background color in hex or rgba string, or "transparent". If not defined, it will use its `bgcolor` property as background color to clear the canvas.
+    */
+    clear(bg) {
+        if (bg)
+            this.background = bg;
+        this._canvas.innerHTML = "";
+        return this;
+    }
+    /**
+    * Set a background color on the container element
+    @param bg background color as hex or rgba string
+    */
+    set background(bg) {
+        this._bgcolor = bg;
+        this._container.style.backgroundColor = this._bgcolor;
+    }
+    get background() { return this._bgcolor; }
+    /**
+    * Add or update a style definition, and optionally update that style in the Element
+    * @param key style name
+    * @param val style value
+    * @param update a boolean to update the element's style immediately if set to `true`. Default is `false`.
+    */
+    style(key, val, update = false) {
+        this._css[key] = val;
+        if (update)
+            this._canvas.style[key] = val;
+        return this;
+    }
+    /**
+    * Add of update a list of style definitions, and optionally update those styles in the Element
+    * @param styles a key-value objects of style definitions
+    * @param update a boolean to update the element's style immediately if set to `true`. Default is `false`.
+    * @return this
+    */
+    styles(styles, update = false) {
+        for (let k in styles) {
+            if (styles.hasOwnProperty(k))
+                this.style(k, styles[k], update);
+        }
+        return this;
+    }
+    /**
+    * A static helper function to add or update Element attributes
+    * @param elem Element to update
+    * @param data an object with key-value pairs
+    * @returns this DOM element
+    */
+    static setAttr(elem, data) {
+        for (let k in data) {
+            if (data.hasOwnProperty(k)) {
+                elem.setAttribute(k, data[k]);
+            }
+        }
+        return elem;
+    }
+    /**
+    * A static helper function to compose an inline style string from a object of styles
+    * @param elem Element to update
+    * @param data an object with key-value pairs
+    * @exmaple DOMSpace.getInlineStyles( {width: "100px", "font-size": "10px"} ); // returns "width: 100px; font-size: 10px"
+    */
+    static getInlineStyles(data) {
+        let str = "";
+        for (let k in data) {
+            if (data.hasOwnProperty(k)) {
+                if (data[k])
+                    str += `${k}: ${data[k]}; `;
+            }
+        }
+        return str;
+    }
+}
+exports.DOMSpace = DOMSpace;
+/**
+ * HTMLSpace. Note that this is currently experimental and may change in future.
+ */
+class HTMLSpace extends DOMSpace {
+    /**
+    * Get a new `HTMLForm` for drawing
+    * @see `HTMLForm`
+    */
+    getForm() {
+        return new HTMLForm(this);
+    }
+    /**
+     * A static function to add a DOM element inside a node. Usually you don't need to use this directly. See methods in `DOMForm` instead.
+     * @param parent the parent element, or `null` to use current `<svg>` as parent.
+     * @param name a string of element name,  such as `rect` or `circle`
+     * @param id id attribute of the new element
+     * @param autoClass add a class based on the id (from char 0 to index of "-"). Default is true.
+     */
+    static htmlElement(parent, name, id, autoClass = true) {
+        if (!parent || !parent.appendChild)
+            throw new Error("parent is not a valid DOM element");
+        let elem = document.querySelector(`#${id}`);
+        if (!elem) {
+            elem = document.createElement(name);
+            elem.setAttribute("id", id);
+            if (autoClass)
+                elem.setAttribute("class", id.substring(0, id.indexOf("-")));
+            parent.appendChild(elem);
+        }
+        return elem;
+    }
+    /**
+    * Remove an item from this Space
+    * @param item a player item with an auto-assigned `animateID` property
+    */
+    remove(player) {
+        let temp = this._container.querySelectorAll("." + HTMLForm.scopeID(player));
+        temp.forEach((el) => {
+            el.parentNode.removeChild(el);
+        });
+        return super.remove(player);
+    }
+    /**
+     * Remove all items from this Space
+     */
+    removeAll() {
+        this._container.innerHTML = "";
+        return super.removeAll();
+    }
+}
+exports.HTMLSpace = HTMLSpace;
+/**
+ * Form for HTMLSpace. Note that this is currently experimental and may change in future.
+ */
+class HTMLForm extends Form_1.VisualForm {
+    constructor(space) {
+        super();
+        this._ctx = {
+            group: null,
+            groupID: "pts",
+            groupCount: 0,
+            currentID: "pts0",
+            currentClass: "",
+            style: {
+                "filled": true,
+                "stroked": true,
+                "background": "#f03",
+                "border-color": "#fff",
+                "color": "#000",
+                "border-width": "1px",
+                "border-radius": "0",
+                "border-style": "solid",
+                "position": "absolute",
+                "top": 0,
+                "left": 0,
+                "width": 0,
+                "height": 0
+            },
+            font: "11px sans-serif",
+            fontSize: 11,
+            fontFamily: "sans-serif"
+        };
+        this._ready = false;
+        this._space = space;
+        this._space.add({ start: () => {
+                this._ctx.group = this._space.element;
+                this._ctx.groupID = "pts_dom_" + (HTMLForm.groupID++);
+                this._ready = true;
+            } });
+    }
+    get space() { return this._space; }
+    /**
+     * Update a style in _ctx context or throw an Erorr if the style doesn't exist
+     * @param k style key
+     * @param v  style value
+     * @param unit Optional unit like 'px' to append to value
+     */
+    styleTo(k, v, unit = '') {
+        if (this._ctx.style[k] === undefined)
+            throw new Error(`${k} style property doesn't exist`);
+        this._ctx.style[k] = `${v}${unit}`;
+    }
+    /**
+    * Set current fill style. Provide a valid color string or `false` to specify no fill color.
+    * @example `form.fill("#F90")`, `form.fill("rgba(0,0,0,.5")`, `form.fill(false)`
+    * @param c fill color
+    */
+    fill(c) {
+        if (typeof c == "boolean") {
+            this.styleTo("filled", c);
+            if (!c)
+                this.styleTo("background", "transparent");
+        }
+        else {
+            this.styleTo("filled", true);
+            this.styleTo("background", c);
+        }
+        return this;
+    }
+    /**
+    * Set current stroke style. Provide a valid color string or `false` to specify no stroke color.
+    * @example `form.stroke("#F90")`, `form.stroke("rgba(0,0,0,.5")`, `form.stroke(false)`, `form.stroke("#000", 0.5, 'round', 'square')`
+    * @param c stroke color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle))
+    * @param width Optional value (can be floating point) to set line width
+    * @param linejoin not implemented in HTMLForm
+    * @param linecap not implemented in HTMLForm
+    */
+    stroke(c, width, linejoin, linecap) {
+        if (typeof c == "boolean") {
+            this.styleTo("stroked", c);
+            if (!c)
+                this.styleTo("border-width", 0);
+        }
+        else {
+            this.styleTo("stroked", true);
+            this.styleTo("border-color", c);
+            this.styleTo("border-width", (width || 1) + "px");
+        }
+        return this;
+    }
+    /**
+    * Set current text color style. Provide a valid color string.
+    * @example `form.fill("#F90")`, `form.fill("rgba(0,0,0,.5")`, `form.fill(false)`
+    * @param c fill color
+    */
+    fillText(c) {
+        this.styleTo("color", c);
+        return this;
+    }
+    /**
+     * Add custom class to the created element
+     * @param c custom class name or `false` to reset it
+     * @example `form.fill("#f00").cls("myClass").rects(r)` `form.cls(false).circles(c)`
+     */
+    cls(c) {
+        if (typeof c == "boolean") {
+            this._ctx.currentClass = "";
+        }
+        else {
+            this._ctx.currentClass = c;
+        }
+        return this;
+    }
+    /**
+    * Set the current font
+    * @param sizeOrFont either a number to specify font-size, or a `Font` object to specify all font properties
+    * @param weight Optional font-weight string such as "bold"
+    * @param style Optional font-style string such as "italic"
+    * @param lineHeight Optional line-height number suchas 1.5
+    * @param family Optional font-family such as "Helvetica, sans-serif"
+    * @example `form.font( myFont )`, `form.font(14, "bold")`
+    */
+    font(sizeOrFont, weight, style, lineHeight, family) {
+        if (typeof sizeOrFont == "number") {
+            this._font.size = sizeOrFont;
+            if (family)
+                this._font.face = family;
+            if (weight)
+                this._font.weight = weight;
+            if (style)
+                this._font.style = style;
+            if (lineHeight)
+                this._font.lineHeight = lineHeight;
+            this._ctx.font = this._font.value;
+        }
+        else {
+            this._font = sizeOrFont;
+        }
+        return this;
+    }
+    /**
+    * Reset the context's common styles to this form's styles. This supports using multiple forms on the same canvas context.
+    */
+    reset() {
+        this._ctx.style = {
+            "filled": true, "stroked": true,
+            "background": "#f03", "border-color": "#fff",
+            "border-width": "1px"
+        };
+        this._font = new Form_1.Font(14, "sans-serif");
+        this._ctx.font = this._font.value;
+        return this;
+    }
+    /**
+     * Set this form's group scope by an ID, and optionally define the group's parent element. A group scope keeps track of elements by their generated IDs, and updates their properties as needed. See also `scope()`.
+     * @param group_id a string to use as prefix for the group's id. For example, group_id "hello" will create elements with id like "hello-1", "hello-2", etc
+     * @param group Optional DOM element to define this group's parent element
+     * @returns this form's context
+     */
+    updateScope(group_id, group) {
+        this._ctx.group = group;
+        this._ctx.groupID = group_id;
+        this._ctx.groupCount = 0;
+        this.nextID();
+        return this._ctx;
+    }
+    /**
+     * Set the current group scope to an item added into space, in order to keep track of any point, circle, etc created within it. The item must have an `animateID` property, so that elements created within the item will have generated IDs like "item-{animateID}-{count}".
+     * @param item a "player" item that's added to space (see `space.add(...)`) and has an `animateID` property
+     * @returns this form's context
+     */
+    scope(item) {
+        if (!item || item.animateID == null)
+            throw new Error("item not defined or not yet added to Space");
+        return this.updateScope(HTMLForm.scopeID(item), this.space.element);
+    }
+    /**
+     * Get next available id in the current group
+     * @returns an id string
+     */
+    nextID() {
+        this._ctx.groupCount++;
+        this._ctx.currentID = `${this._ctx.groupID}-${this._ctx.groupCount}`;
+        return this._ctx.currentID;
+    }
+    /**
+     * A static function to generate an ID string based on a context object
+     * @param ctx a context object for an HTMLForm
+     */
+    static getID(ctx) {
+        return ctx.currentID || `p-${HTMLForm.domID++}`;
+    }
+    /**
+     * A static function to generate an ID string for a scope, based on a "player" item in the Space
+     * @param item a "player" item that's added to space (see `space.add(...)`) and has an `animateID` property
+     */
+    static scopeID(item) {
+        return `item-${item.animateID}`;
+    }
+    /**
+     * A static function to help adding style object to an element. This put all styles into `style` attribute instead of individual attributes, so that the styles can be parsed by Adobe Illustrator.
+     * @param elem A DOM element to add to
+     * @param styles an object of style properties
+     * @example `HTMLForm.style(elem, {fill: "#f90", stroke: false})`
+     * @returns DOM element
+     */
+    static style(elem, styles) {
+        let st = [];
+        if (!styles["filled"])
+            st.push("background: none");
+        if (!styles["stroked"])
+            st.push("border: none");
+        for (let k in styles) {
+            if (styles.hasOwnProperty(k) && k != "filled" && k != "stroked") {
+                let v = styles[k];
+                if (v) {
+                    if (!styles["filled"] && k.indexOf('background') === 0) {
+                        continue;
+                    }
+                    else if (!styles["stroked"] && k.indexOf('border-width') === 0) {
+                        continue;
+                    }
+                    else {
+                        st.push(`${k}: ${v}`);
+                    }
+                }
+            }
+        }
+        return HTMLSpace.setAttr(elem, { style: st.join(";") });
+    }
+    /**
+   * A helper function to set top, left, width, height of DOM element
+   * @param x left position
+   * @param y top position
+   * @param w width
+   * @param h height
+   */
+    static rectStyle(ctx, pt, size) {
+        ctx.style["left"] = pt[0] + "px";
+        ctx.style["top"] = pt[1] + "px";
+        ctx.style["width"] = size[0] + "px";
+        ctx.style["height"] = size[1] + "px";
+        return ctx;
+    }
+    /**
+    * Draws a point
+    * @param ctx a context object of HTMLForm
+    * @param pt a Pt object or numeric array
+    * @param radius radius of the point. Default is 5.
+    * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
+    * @example `HTMLForm.point( p )`, `HTMLForm.point( p, 10, "circle" )`
+    */
+    static point(ctx, pt, radius = 5, shape = "square") {
+        if (shape === "circle") {
+            return HTMLForm.circle(ctx, pt, radius);
+        }
+        else {
+            return HTMLForm.square(ctx, pt, radius);
+        }
+    }
+    /**
+    * Draws a point
+    * @param p a Pt object
+    * @param radius radius of the point. Default is 5.
+    * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
+    * @example `form.point( p )`, `form.point( p, 10, "circle" )`
+    */
+    point(pt, radius = 5, shape = "square") {
+        this.nextID();
+        if (shape == "circle")
+            this.styleTo("border-radius", "100%");
+        HTMLForm.point(this._ctx, pt, radius, shape);
+        return this;
+    }
+    /**
+    * A static function to draw a circle
+    * @param ctx a context object of HTMLForm
+    * @param pt center position of the circle
+    * @param radius radius of the circle
+    */
+    static circle(ctx, pt, radius = 10) {
+        let elem = HTMLSpace.htmlElement(ctx.group, "div", HTMLForm.getID(ctx));
+        HTMLSpace.setAttr(elem, { class: `pts-form pts-circle ${ctx.currentClass}` });
+        HTMLForm.rectStyle(ctx, new Pt_1.Pt(pt).$subtract(radius), new Pt_1.Pt(radius * 2, radius * 2));
+        HTMLForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+    * Draw a circle
+    * @param pts usually a Group of 2 Pts, but it can also take an array of two numeric arrays [ [position], [size] ]
+    * @see [`Circle.fromCenter`](./_op_.circle.html#frompt)
+    */
+    circle(pts) {
+        this.nextID();
+        this.styleTo("border-radius", "100%");
+        HTMLForm.circle(this._ctx, pts[0], pts[1][0]);
+        return this;
+    }
+    /**
+    * A static function to draw a square
+    * @param ctx a context object of HTMLForm
+    * @param pt center position of the square
+    * @param halfsize half size of the square
+    */
+    static square(ctx, pt, halfsize) {
+        let elem = HTMLSpace.htmlElement(ctx.group, "div", HTMLForm.getID(ctx));
+        HTMLSpace.setAttr(elem, { class: `pts-form pts-square ${ctx.currentClass}` });
+        HTMLForm.rectStyle(ctx, new Pt_1.Pt(pt).$subtract(halfsize), new Pt_1.Pt(halfsize * 2, halfsize * 2));
+        HTMLForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+     * Draw a square, given a center and its half-size
+     * @param pt center Pt
+     * @param halfsize half-size
+     */
+    square(pt, halfsize) {
+        this.nextID();
+        HTMLForm.square(this._ctx, pt, halfsize);
+        return this;
+    }
+    /**
+    * A static function to draw a rectangle
+    * @param ctx a context object of HTMLForm
+    * @param pts usually a Group of 2 Pts specifying the top-left and bottom-right positions. Alternatively it can be an array of numeric arrays.
+    */
+    static rect(ctx, pts) {
+        if (!this._checkSize(pts))
+            return;
+        let elem = HTMLSpace.htmlElement(ctx.group, "div", HTMLForm.getID(ctx));
+        HTMLSpace.setAttr(elem, { class: `pts-form pts-rect ${ctx.currentClass}` });
+        HTMLForm.rectStyle(ctx, pts[0], pts[1]);
+        HTMLForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+    * Draw a rectangle
+    * @param pts usually a Group of 2 Pts specifying the top-left and bottom-right positions. Alternatively it can be an array of numeric arrays.
+    */
+    rect(pts) {
+        this.nextID();
+        this.styleTo("border-radius", "0");
+        HTMLForm.rect(this._ctx, pts);
+        return this;
+    }
+    /**
+    * A static function to draw text
+    * @param ctx a context object of HTMLForm
+    * @param `pt` a Point object to specify the anchor point
+    * @param `txt` a string of text to draw
+    * @param `maxWidth` specify a maximum width per line
+    */
+    static text(ctx, pt, txt) {
+        let elem = HTMLSpace.htmlElement(ctx.group, "div", HTMLForm.getID(ctx));
+        HTMLSpace.setAttr(elem, {
+            position: 'absolute',
+            class: `pts-form pts-text ${ctx.currentClass}`,
+            left: pt[0],
+            top: pt[1],
+        });
+        elem.textContent = txt;
+        HTMLForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+    * Draw text on canvas
+    * @param `pt` a Pt or numeric array to specify the anchor point
+    * @param `txt` text
+    * @param `maxWidth` specify a maximum width per line
+    */
+    text(pt, txt) {
+        this.nextID();
+        HTMLForm.text(this._ctx, pt, txt);
+        return this;
+    }
+    /**
+    * A convenient way to draw some text on canvas for logging or debugging. It'll be draw on the top-left of the canvas as an overlay.
+    * @param txt text
+    */
+    log(txt) {
+        this.fill("#000").stroke("#fff", 0.5).text([10, 14], txt);
+        return this;
+    }
+    /**
+     * Arc is not implemented in HTMLForm
+     */
+    arc(pt, radius, startAngle, endAngle, cc) {
+        Util_1.Util.warn("arc is not implemented in HTMLForm");
+        return this;
+    }
+    /**
+     * Line is not implemented in HTMLForm
+     */
+    line(pts) {
+        Util_1.Util.warn("line is not implemented in HTMLForm");
+        return this;
+    }
+    /**
+     * Polygon is not implemented in HTMLForm
+     * @param pts
+     */
+    polygon(pts) {
+        Util_1.Util.warn("polygon is not implemented in HTMLForm");
+        return this;
+    }
+}
+HTMLForm.groupID = 0;
+HTMLForm.domID = 0;
+exports.HTMLForm = HTMLForm;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0.
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Pt_1 = __webpack_require__(0);
+/** Various functions to support typography */
+class Typography {
+    /**
+     * Create a heuristic text width estimate function. It will be less accurate but faster.
+     * @param fn a reference function that can measure text width accurately
+     * @param samples a list of string samples. Default is ["M", "n", "."]
+     * @param distribution a list of the samples' probability distribution. Default is [0.06, 0.8, 0.14].
+     * @return a function that can estimate text width
+     */
+    static textWidthEstimator(fn, samples = ["M", "n", "."], distribution = [0.06, 0.8, 0.14]) {
+        let m = samples.map(fn);
+        let avg = new Pt_1.Pt(distribution).dot(m);
+        return (str) => str.length * avg;
+    }
+    /**
+     * Truncate text to fit width
+     * @param fn a function that can measure text width
+     * @param str text to truncate
+     * @param width width to fit
+     * @param tail text to indicate overflow such as "...". Default is empty "".
+     */
+    static truncate(fn, str, width, tail = "") {
+        let trim = Math.floor(str.length * Math.min(1, width / (fn(str) * 1.1)));
+        if (trim < str.length) {
+            trim = Math.max(0, trim - tail.length);
+            return [str.substr(0, trim) + tail, trim];
+        }
+        else {
+            return [str, str.length];
+        }
+    }
+    /**
+     * Get a function to scale font size proportionally to text box size changes.
+     * @param box Initial box as a Group
+     * @param ratio font-size change ratio. Default is 1.
+     * @returns a function where input parameter is a new box, and returns the new font size value
+     */
+    static fontSizeToBox(box, ratio = 1) {
+        let h = (box[1][1] - box[0][1]);
+        let f = ratio * h;
+        return function (b) {
+            let nh = (b[1][1] - b[0][1]) / h;
+            return f * nh;
+        };
+    }
+}
+exports.Typography = Typography;
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Space_1 = __webpack_require__(7);
+const Form_1 = __webpack_require__(6);
+const Bound_1 = __webpack_require__(5);
+const Pt_1 = __webpack_require__(0);
+const Util_1 = __webpack_require__(1);
+const Typography_1 = __webpack_require__(9);
+const Op_1 = __webpack_require__(2);
+/**
+* CanvasSpace is an implementation of the abstract class Space. It represents a space for HTML Canvas.
+* Learn more about the concept of Space in [this guide](..guide/Space-0500.html)
+*/
+class CanvasSpace extends Space_1.MultiTouchSpace {
+    /**
+    * Create a CanvasSpace which represents a HTML Canvas Space
+    * @param elem Specify an element by its "id" attribute as string, or by the element object itself. An element can be an existing `<canvas>`, or a `<div>` container in which a new `<canvas>` will be created. If left empty, a `<div id="pt_container"><canvas id="pt" /></div>` will be added to DOM. Use css to customize its appearance if needed.
+    * @param callback an optional callback `function(boundingBox, spaceElement)` to be called when canvas is appended and ready. Alternatively, a "ready" event will also be fired from the `<canvas>` element when it's appended, which can be traced with `spaceInstance.canvas.addEventListener("ready")`
+    * @example `new CanvasSpace( "#myElementID" )`
+    */
+    constructor(elem, callback) {
+        super();
+        this._pixelScale = 1;
+        this._autoResize = true;
+        this._bgcolor = "#e1e9f0";
+        this._offscreen = false;
+        this._initialResize = false;
+        var _selector = null;
+        var _existed = false;
+        this.id = "pt";
+        // check element or element id string
+        if (elem instanceof Element) {
+            _selector = elem;
+            this.id = "pts_existing_space";
+        }
+        else {
+            ;
+            _selector = document.querySelector(elem);
+            _existed = true;
+            this.id = elem;
+        }
+        // if selector is not defined, create a canvas
+        if (!_selector) {
+            this._container = this._createElement("div", this.id + "_container");
+            this._canvas = this._createElement("canvas", this.id);
+            this._container.appendChild(this._canvas);
+            document.body.appendChild(this._container);
+            _existed = false;
+            // if selector is element but not canvas, create a canvas inside it
+        }
+        else if (_selector.nodeName.toLowerCase() != "canvas") {
+            this._container = _selector;
+            this._canvas = this._createElement("canvas", this.id + "_canvas");
+            this._container.appendChild(this._canvas);
+            this._initialResize = true;
+            // if selector is an existing canvas
+        }
+        else {
+            this._canvas = _selector;
+            this._container = _selector.parentElement;
+            this._autoResize = false;
+        }
+        // if size is known then set it immediately
+        // if (_existed) {
+        // let b = this._container.getBoundingClientRect();
+        // this.resize( Bound.fromBoundingRect(b) );
+        // }
+        // no mutation observer, so we set a timeout for ready event
+        setTimeout(this._ready.bind(this, callback), 100);
+        // store canvas 2d rendering context
+        this._ctx = this._canvas.getContext('2d');
+    }
+    /**
+    * Helper function to create a DOM element
+    * @param elem element tag name
+    * @param id element id attribute
+    */
+    _createElement(elem = "div", id) {
+        let d = document.createElement(elem);
+        d.setAttribute("id", id);
+        return d;
+    }
+    /**
+    * Handle callbacks after element is mounted in DOM
+    * @param callback
+    */
+    _ready(callback) {
+        if (!this._container)
+            throw new Error(`Cannot initiate #${this.id} element`);
+        this._isReady = true;
+        this._resizeHandler(null);
+        this.clear(this._bgcolor);
+        this._canvas.dispatchEvent(new Event("ready"));
+        for (let k in this.players) {
+            if (this.players.hasOwnProperty(k)) {
+                if (this.players[k].start)
+                    this.players[k].start(this.bound.clone(), this);
+            }
+        }
+        this._pointer = this.center;
+        this._initialResize = false; // unset
+        if (callback)
+            callback(this.bound, this._canvas);
+    }
+    /**
+    * Set up various options for CanvasSpace. The `opt` parameter is an object with the following fields. This is usually set during instantiation, eg `new CanvasSpace(...).setup( { opt } )`
+    * @param opt an object with optional settings, as follows.
+    * @param opt.bgcolor a hex or rgba string to set initial background color of the canvas, or use `false` or "transparent" to set a transparent background. You may also change it later with `clear()`
+    * @param opt.resize a boolean to set whether `<canvas>` size should auto resize to match its container's size. You can also set it manually with `autoSize()`
+    * @param opt.retina a boolean to set if device pixel scaling should be used. This may make drawings on retina displays look sharper but may reduce performance slightly. Default is `true`.
+    * @param opt.offscreen a boolean to set if a duplicate canvas should be created for offscreen rendering. Default is `false`.
+    * @example `space.setup({ bgcolor: "#f00", retina: true, resize: true })`
+    */
+    setup(opt) {
+        if (opt.bgcolor)
+            this._bgcolor = opt.bgcolor;
+        this.autoResize = (opt.resize != undefined) ? opt.resize : false;
+        if (opt.retina !== false) {
+            let r1 = window.devicePixelRatio || 1;
+            let r2 = this._ctx.webkitBackingStorePixelRatio || this._ctx.mozBackingStorePixelRatio || this._ctx.msBackingStorePixelRatio || this._ctx.oBackingStorePixelRatio || this._ctx.backingStorePixelRatio || 1;
+            this._pixelScale = r1 / r2;
+        }
+        if (opt.offscreen) {
+            this._offscreen = true;
+            this._offCanvas = this._createElement("canvas", this.id + "_offscreen");
+            this._offCtx = this._offCanvas.getContext('2d');
+        }
+        else {
+            this._offscreen = false;
+        }
+        return this;
+    }
+    /**
+    * Set whether the canvas element should resize when its container is resized.
+    * @param auto a boolean value indicating if auto size is set
+    */
+    set autoResize(auto) {
+        this._autoResize = auto;
+        if (auto) {
+            window.addEventListener('resize', this._resizeHandler.bind(this));
+        }
+        else {
+            window.removeEventListener('resize', this._resizeHandler.bind(this));
+        }
+    }
+    get autoResize() { return this._autoResize; }
+    /**
+  * This overrides Space's `resize` function. It's used as a callback function for window's resize event and not usually called directly. You can keep track of resize events with `resize: (bound ,evt)` callback in your player objects (See `Space`'s `add()` function).
+  * @param b a Bound object to resize to
+  * @param evt Optionally pass a resize event
+  */
+    resize(b, evt) {
+        this.bound = b;
+        this._canvas.width = this.bound.size.x * this._pixelScale;
+        this._canvas.height = this.bound.size.y * this._pixelScale;
+        this._canvas.style.width = Math.floor(this.bound.size.x) + "px";
+        this._canvas.style.height = Math.floor(this.bound.size.y) + "px";
+        if (this._offscreen) {
+            this._offCanvas.width = this.bound.size.x * this._pixelScale;
+            this._offCanvas.height = this.bound.size.y * this._pixelScale;
+            // this._offCanvas.style.width = Math.floor(this.bound.size.x) + "px";
+            // this._offCanvas.style.height = Math.floor(this.bound.size.y) + "px";
+        }
+        if (this._pixelScale != 1) {
+            this._ctx.scale(this._pixelScale, this._pixelScale);
+            this._ctx.translate(0.5, 0.5);
+            if (this._offscreen) {
+                this._offCtx.scale(this._pixelScale, this._pixelScale);
+                this._offCtx.translate(0.5, 0.5);
+            }
+        }
+        for (let k in this.players) {
+            if (this.players.hasOwnProperty(k)) {
+                let p = this.players[k];
+                if (p.resize)
+                    p.resize(this.bound, evt);
+            }
+        }
+        ;
+        this.render(this._ctx);
+        // if it's a valid resize event and space is not playing, repaint the canvas once
+        if (evt && !this.isPlaying)
+            this.playOnce(0);
+        return this;
+    }
+    /**
+    * Window resize handling
+    * @param evt
+    */
+    _resizeHandler(evt) {
+        let b = (this._autoResize || this._initialResize) ? this._container.getBoundingClientRect() : this._canvas.getBoundingClientRect();
+        if (b) {
+            let box = Bound_1.Bound.fromBoundingRect(b);
+            // Need to compute offset from window scroll. See outerBound calculation in Space's _mouseAction 
+            box.center = box.center.add(window.pageXOffset, window.pageYOffset);
+            this.resize(box, evt);
+        }
+    }
+    /**
+    * Set a background color for this canvas. Alternatively, you may use `clear()` function.
+    @param bg background color as hex or rgba string
+    */
+    set background(bg) { this._bgcolor = bg; }
+    get background() { return this._bgcolor; }
+    /**
+    * `pixelScale` property returns a number that let you determine if the screen is "retina" (when value >= 2)
+    */
+    get pixelScale() {
+        return this._pixelScale;
+    }
+    /**
+    * Check if an offscreen canvas is created
+    */
+    get hasOffscreen() {
+        return this._offscreen;
+    }
+    /**
+    * Get the rendering context of offscreen canvas (if created via `setup()`)
+    */
+    get offscreenCtx() { return this._offCtx; }
+    /**
+    * Get the offscreen canvas element
+    */
+    get offscreenCanvas() { return this._offCanvas; }
+    /**
+    * Get a new `CanvasForm` for drawing
+    * @see `CanvasForm`
+    */
+    getForm() { return new CanvasForm(this); }
+    /**
+    * Get the html canvas element
+    */
+    get element() {
+        return this._canvas;
+    }
+    /**
+    * Get the parent element that contains the canvas element
+    */
+    get parent() {
+        return this._container;
+    }
+    /**
+     * A property to indicate if the Space is ready
+     */
+    get ready() {
+        return this._isReady;
+    }
+    /**
+    * Get the rendering context of canvas
+    */
+    get ctx() { return this._ctx; }
+    /**
+    * Clear the canvas with its background color. Overrides Space's `clear` function.
+    * @param bg Optionally specify a custom background color in hex or rgba string, or "transparent". If not defined, it will use its `bgcolor` property as background color to clear the canvas.
+    */
+    clear(bg) {
+        if (bg)
+            this._bgcolor = bg;
+        let lastColor = this._ctx.fillStyle;
+        if (this._bgcolor && this._bgcolor != "transparent") {
+            this._ctx.fillStyle = this._bgcolor;
+            this._ctx.fillRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
+        }
+        else {
+            this._ctx.clearRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
+        }
+        this._ctx.fillStyle = lastColor;
+        return this;
+    }
+    /**
+    * Similiar to `clear()` but clear the offscreen canvas instead
+    * @param bg Optionally specify a custom background color in hex or rgba string, or "transparent". If not defined, it will use its `bgcolor` property as background color to clear the canvas.
+    */
+    clearOffscreen(bg) {
+        if (this._offscreen) {
+            if (bg) {
+                this._offCtx.fillStyle = bg;
+                this._offCtx.fillRect(-1, -1, this._canvas.width + 1, this._canvas.height + 1);
+            }
+            else {
+                this._offCtx.clearRect(-1, -1, this._offCanvas.width + 1, this._offCanvas.height + 1);
+            }
+        }
+        return this;
+    }
+    /**
+    * Main animation function. Call `Space.playItems`.
+    * @param time current time
+    */
+    playItems(time) {
+        if (this._isReady) {
+            this._ctx.save();
+            if (this._offscreen)
+                this._offCtx.save();
+            super.playItems(time);
+            this._ctx.restore();
+            if (this._offscreen)
+                this._offCtx.restore();
+            this.render(this._ctx);
+        }
+    }
 }
 exports.CanvasSpace = CanvasSpace;
 /**
@@ -26399,7 +27590,6 @@ class CanvasForm extends Form_1.VisualForm {
     */
     constructor(space) {
         super();
-        this._ready = false;
         /**
         * store common styles so that they can be restored to canvas context when using multiple forms. See `reset()`.
         */
@@ -26407,7 +27597,6 @@ class CanvasForm extends Form_1.VisualForm {
             fillStyle: "#f03", strokeStyle: "#fff",
             lineWidth: 1, lineJoin: "bevel", lineCap: "butt",
         };
-        this._font = new Form_1.Font(14, "sans-serif");
         this._space = space;
         this._space.add({ start: () => {
                 this._ctx = this._space.ctx;
@@ -26422,10 +27611,6 @@ class CanvasForm extends Form_1.VisualForm {
     * get the CanvasSpace instance that this form is associated with
     */
     get space() { return this._space; }
-    /**
-     * get whether the CanvasForm has received the Space's rendering context
-     */
-    get ready() { return this._ready; }
     /**
     * Toggle whether to draw on offscreen canvas (if offscreen is set in CanvasSpace)
     * @param off if `true`, draw on offscreen canvas instead of the visible canvas. Default is `true`
@@ -26463,15 +27648,6 @@ class CanvasForm extends Form_1.VisualForm {
         return this;
     }
     /**
-    * Set current fill style and without stroke.
-    * @example `form.fillOnly("#F90")`, `form.fillOnly("rgba(0,0,0,.5")`
-    * @param c fill color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle))
-    */
-    fillOnly(c) {
-        this.stroke(false);
-        return this.fill(c);
-    }
-    /**
     * Set current stroke style. Provide a valid color string or `false` to specify no stroke color.
     * @example `form.stroke("#F90")`, `form.stroke("rgba(0,0,0,.5")`, `form.stroke(false)`, `form.stroke("#000", 0.5, 'round', 'square')`
     * @param c stroke color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle))
@@ -26503,15 +27679,6 @@ class CanvasForm extends Form_1.VisualForm {
         return this;
     }
     /**
-    * Set current stroke style and without fill.
-    * @example `form.strokeOnly("#F90")`, `form.strokeOnly("#000", 0.5, 'round', 'square')`
-    * @param c stroke color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle)
-    */
-    strokeOnly(c, width, linejoin, linecap) {
-        this.fill(false);
-        return this.stroke(c, width, linejoin, linecap);
-    }
-    /**
     * Set the current font
     * @param sizeOrFont either a number to specify font-size, or a `Font` object to specify all font properties
     * @param weight Optional font-weight string such as "bold"
@@ -26536,7 +27703,60 @@ class CanvasForm extends Form_1.VisualForm {
         else {
             this._font = sizeOrFont;
         }
+        // If using estimate, reapply it when font changes.
+        if (this._estimateTextWidth)
+            this.fontWidthEstimate(true);
         return this;
+    }
+    /**
+     * Set whether to use ctx.measureText or a faster but less accurate heuristic function.
+     * @param estimate `true` to use heuristic function, or `false` to use ctx.measureText
+     */
+    fontWidthEstimate(estimate = true) {
+        this._estimateTextWidth = (estimate) ? Typography_1.Typography.textWidthEstimator(((c) => this._ctx.measureText(c).width)) : undefined;
+        return this;
+    }
+    /**
+     * Get the width of this text. It will return an actual measurement or an estimate based on `fontWidthEstimate` setting. Default is an actual measurement using canvas context's measureText.
+     * @param c a string of text contents
+     */
+    getTextWidth(c) {
+        return (!this._estimateTextWidth) ? this._ctx.measureText(c).width : this._estimateTextWidth(c);
+    }
+    /**
+     * Truncate text to fit width
+     * @param str text to truncate
+     * @param width width to fit
+     * @param tail text to indicate overflow such as "...". Default is empty "".
+     */
+    _textTruncate(str, width, tail = "") {
+        return Typography_1.Typography.truncate(this.getTextWidth.bind(this), str, width, tail);
+    }
+    /**
+     * Align text within a rectangle box
+     * @param box a Group that defines a rectangular box
+     * @param vertical a string that specifies the vertical alignment in the box: "top", "bottom", "middle", "start", "end"
+     * @param offset Optional offset from the edge (like padding)
+     * @param center Optional center position
+     */
+    _textAlign(box, vertical, offset, center) {
+        if (!center)
+            center = Op_1.Rectangle.center(box);
+        var px = box[0][0];
+        if (this._ctx.textAlign == "end" || this._ctx.textAlign == "right") {
+            px = box[1][0];
+        }
+        else if (this._ctx.textAlign == "center" || this._ctx.textAlign == "middle") {
+            px = center[0];
+        }
+        var py = center[1];
+        if (vertical == "top" || vertical == "start") {
+            py = box[0][1];
+        }
+        else if (vertical == "end" || vertical == "bottom") {
+            py = box[1][1];
+        }
+        return (offset) ? new Pt_1.Pt(px + offset[0], py + offset[1]) : new Pt_1.Pt(px, py);
     }
     /**
     * Reset the rendering context's common styles to this form's styles. This supports using multiple forms on the same canvas context.
@@ -26557,14 +27777,6 @@ class CanvasForm extends Form_1.VisualForm {
         if (this._stroked)
             this._ctx.stroke();
     }
-    _multiple(groups, shape, ...rest) {
-        if (!groups)
-            return this;
-        for (let i = 0, len = groups.length; i < len; i++) {
-            this[shape](groups[i], ...rest);
-        }
-        return this;
-    }
     /**
     * Draws a point
     * @param p a Pt object
@@ -26579,20 +27791,6 @@ class CanvasForm extends Form_1.VisualForm {
             throw new Error(`${shape} is not a static function of CanvasForm`);
         CanvasForm[shape](this._ctx, p, radius);
         this._paint();
-        return this;
-    }
-    /**
-    * Draw multiple points at once
-    * @param pts an array of Pt or an array of number arrays
-    * @param radius radius of the point. Default is 5.
-    * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
-    */
-    points(pts, radius = 5, shape = "square") {
-        if (!pts)
-            return;
-        for (let i = 0, len = pts.length; i < len; i++) {
-            this.point(pts[i], radius, shape);
-        }
         return this;
     }
     /**
@@ -26617,13 +27815,6 @@ class CanvasForm extends Form_1.VisualForm {
         CanvasForm.circle(this._ctx, pts[0], pts[1][0]);
         this._paint();
         return this;
-    }
-    /**
-    * Draw multiple circles at once
-    * @param groups an array of Groups that defines multiple circles
-    */
-    circles(groups) {
-        return this._multiple(groups, "circle");
     }
     /**
     * A static function to draw an arc.
@@ -26675,6 +27866,16 @@ class CanvasForm extends Form_1.VisualForm {
         ctx.closePath();
     }
     /**
+     * Draw a square, given a center and its half-size
+     * @param pt center Pt
+     * @param halfsize half-size
+     */
+    square(pt, halfsize) {
+        CanvasForm.square(this._ctx, pt, halfsize);
+        this._paint();
+        return this;
+    }
+    /**
     * A static function to draw a line
     * @param ctx canvas rendering context
     * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
@@ -26697,13 +27898,6 @@ class CanvasForm extends Form_1.VisualForm {
         CanvasForm.line(this._ctx, pts);
         this._paint();
         return this;
-    }
-    /**
-    * Draw multiple lines at once
-    * @param groups An array of Groups of Pts
-    */
-    lines(groups) {
-        return this._multiple(groups, "line");
     }
     /**
     * A static function to draw polygon
@@ -26731,13 +27925,6 @@ class CanvasForm extends Form_1.VisualForm {
         return this;
     }
     /**
-    * Draw multiple polygons at once
-    * @param groups An array of Groups of Pts
-    */
-    polygons(groups) {
-        return this._multiple(groups, "polygon");
-    }
-    /**
     * A static function to draw a rectangle
     * @param ctx canvas rendering context
     * @param pts usually a Group of 2 Pts specifying the top-left and bottom-right positions. Alternatively it can be an array of numeric arrays.
@@ -26762,13 +27949,6 @@ class CanvasForm extends Form_1.VisualForm {
         return this;
     }
     /**
-    * Draw multiple rectangles at once
-    * @param groups An array of Groups of Pts
-    */
-    rects(groups) {
-        return this._multiple(groups, "rect");
-    }
-    /**
     * A static function to draw text
     * @param ctx canvas rendering context
     * @param `pt` a Point object to specify the anchor point
@@ -26791,6 +27971,92 @@ class CanvasForm extends Form_1.VisualForm {
         return this;
     }
     /**
+     * Fit a single-line text in a rectangular box
+     * @param box a rectangle box defined by a Group
+     * @param txt string of text
+     * @param tail text to indicate overflow such as "...". Default is empty "".
+     * @param verticalAlign "top", "middle", or "bottom" to specify vertical alignment inside the box
+     * @param overrideBaseline If `true`, use the corresponding baseline as verticalAlign. If `false`, use the current canvas context's textBaseline setting. Default is `true`.
+     */
+    textBox(box, txt, verticalAlign = "middle", tail = "", overrideBaseline = true) {
+        if (overrideBaseline)
+            this._ctx.textBaseline = verticalAlign;
+        let size = Op_1.Rectangle.size(box);
+        let t = this._textTruncate(txt, size[0], tail);
+        this.text(this._textAlign(box, verticalAlign), t[0]);
+        return this;
+    }
+    /**
+     * Fit multi-line text in a rectangular box. Note that this will also set canvas context's textBaseline to "top".
+     * @param box a rectangle box defined by a Group
+     * @param txt string of text
+     * @param lineHeight line height as a ratio of font size. Default is 1.2.
+     * @param verticalAlign "top", "middle", or "bottom" to specify vertical alignment inside the box
+     * @param crop a boolean to specify whether to crop text when overflowing
+     */
+    paragraphBox(box, txt, lineHeight = 1.2, verticalAlign = "top", crop = true) {
+        let size = Op_1.Rectangle.size(box);
+        this._ctx.textBaseline = "top"; // override textBaseline
+        let lstep = this._font.size * lineHeight;
+        // find next lines recursively
+        let nextLine = (sub, buffer = [], cc = 0) => {
+            if (!sub)
+                return buffer;
+            if (crop && cc * lstep > size[1] - lstep * 2)
+                return buffer;
+            if (cc > 10000)
+                throw new Error("max recursion reached (10000)");
+            let t = this._textTruncate(sub, size[0], "");
+            // new line
+            let newln = t[0].indexOf("\n");
+            if (newln >= 0) {
+                buffer.push(t[0].substr(0, newln));
+                return nextLine(sub.substr(newln + 1), buffer, cc + 1);
+            }
+            // word wrap
+            let dt = t[0].lastIndexOf(" ") + 1;
+            if (dt <= 0 || t[1] === sub.length)
+                dt = undefined;
+            let line = t[0].substr(0, dt);
+            buffer.push(line);
+            return (t[1] <= 0 || t[1] === sub.length) ? buffer : nextLine(sub.substr((dt || t[1])), buffer, cc + 1);
+        };
+        let lines = nextLine(txt); // go through all lines
+        let lsize = lines.length * lstep; // total height
+        let lbox = box;
+        if (verticalAlign == "middle" || verticalAlign == "center") {
+            let lpad = (size[1] - lsize) / 2;
+            if (crop)
+                lpad = Math.max(0, lpad);
+            lbox = new Pt_1.Group(box[0].$add(0, lpad), box[1].$subtract(0, lpad));
+        }
+        else if (verticalAlign == "bottom") {
+            lbox = new Pt_1.Group(box[0].$add(0, size[1] - lsize), box[1]);
+        }
+        else {
+            lbox = new Pt_1.Group(box[0], box[0].$add(size[0], lsize));
+        }
+        let center = Op_1.Rectangle.center(lbox);
+        for (let i = 0, len = lines.length; i < len; i++) {
+            this.text(this._textAlign(lbox, "top", [0, i * lstep], center), lines[i]);
+        }
+        return this;
+    }
+    /**
+     * Set text alignment and baseline (eg, vertical-align)
+     * @param alignment Canvas' textAlign option: "left", "right", "center", "start", or "end"
+     * @param baseline Canvas' textBaseline option: "top", "hanging", "middle", "alphabetic", "ideographic", "bottom". For convenience, you can also use "center" (same as "middle"), and "baseline" (same as "alphabetic")
+     */
+    alignText(alignment = "left", baseline = "alphabetic") {
+        if (baseline == "center")
+            baseline = "middle";
+        if (baseline == "baseline")
+            baseline = "alphabetic";
+        this._ctx.textAlign = alignment;
+        this._ctx.textBaseline = baseline;
+        return this;
+    }
+    /**
     * A convenient way to draw some text on canvas for logging or debugging. It'll be draw on the top-left of the canvas as an overlay.
     * @param txt text
     */
@@ -26805,13 +28071,13 @@ exports.CanvasForm = CanvasForm;
 
 
 /***/ }),
-/* 9 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
 const Pt_1 = __webpack_require__(0);
 const Util_1 = __webpack_require__(1);
@@ -26850,7 +28116,7 @@ class Color extends Pt_1.Pt {
         if (hex[0] == "#")
             hex = hex.substr(1); // remove '#' if needed
         if (hex.length <= 3) {
-            let fn = (i) => hex[1] || "F";
+            let fn = (i) => hex[i] || "F";
             hex = `${fn(0)}${fn(0)}${fn(1)}${fn(1)}${fn(2)}${fn(2)}`;
         }
         let alpha = 1;
@@ -27370,16 +28636,19 @@ exports.Color = Color;
 
 
 /***/ }),
-/* 10 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 // Source code licensed under Apache License 2.0. 
-// Copyright © 2017 William Ngan. (https://github.com/williamngan)
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
 Object.defineProperty(exports, "__esModule", { value: true });
 const Pt_1 = __webpack_require__(0);
+const Op_1 = __webpack_require__(2);
 const Util_1 = __webpack_require__(1);
+const Num_1 = __webpack_require__(3);
+const LinearAlgebra_1 = __webpack_require__(4);
 /**
  * The `Create` class provides various convenient functions to create structures or shapes.
  */
@@ -27403,6 +28672,17 @@ class Create {
         return pts;
     }
     /**
+     * Create a set of points that distribute evenly on a line
+     * @param line a Group representing a line
+     * @param count number of points to create
+     */
+    static distributeLinear(line, count) {
+        let ln = Op_1.Line.subpoints(line, count - 2);
+        ln.unshift(line[0]);
+        ln.push(line[line.length - 1]);
+        return ln;
+    }
+    /**
      * Create an evenly distributed set of points (like a grid of points) inside a boundary.
      * @param bound the rectangular boundary
      * @param columns number of columns
@@ -27416,8 +28696,8 @@ class Create {
         let unit = bound.size.$subtract(1).$divide(columns, rows);
         let offset = unit.$multiply(orientation);
         let g = new Pt_1.Group();
-        for (let c = 0; c < columns; c++) {
-            for (let r = 0; r < rows; r++) {
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < columns; c++) {
                 g.push(bound.topLeft.$add(unit.$multiply(c, r)).add(offset));
             }
         }
@@ -27435,8 +28715,8 @@ class Create {
             throw new Error("grid columns and rows cannot be 0");
         let unit = bound.size.$subtract(1).divide(columns, rows); // subtract 1 to fill whole border of rectangles
         let g = [];
-        for (let c = 0; c < columns; c++) {
-            for (let r = 0; r < rows; r++) {
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < columns; c++) {
                 g.push(new Pt_1.Group(bound.topLeft.$add(unit.$multiply(c, r)), bound.topLeft.$add(unit.$multiply(c, r).add(unit))));
             }
         }
@@ -27456,44 +28736,1085 @@ class Create {
         }
         return g;
     }
+    /**
+     * Given a group of Pts, return a new group of `Noise` Pts.
+     * @param pts a Group or an array of Pts
+     * @param dx small increment value in x dimension
+     * @param dy small increment value in y dimension
+     * @param rows Optional row count to generate 2D noise
+     * @param columns Optional column count to generate 2D noise
+     */
+    static noisePts(pts, dx = 0.01, dy = 0.01, rows = 0, columns = 0) {
+        let seed = Math.random();
+        let g = new Pt_1.Group();
+        for (let i = 0, len = pts.length; i < len; i++) {
+            let np = new Noise(pts[i]);
+            let r = (rows && rows > 0) ? Math.floor(i / rows) : i;
+            let c = (columns && columns > 0) ? i % columns : i;
+            np.initNoise(dx * c, dy * r);
+            np.seed(seed);
+            g.push(np);
+        }
+        return g;
+    }
+    /**
+     * Create a Delaunay Group. Use the `.delaunay()` and `.voronoi()` functions in the returned group to generate tessellations.
+     * @param pts a Group or an array of Pts
+     * @returns an instance of the Delaunay class
+     */
+    static delaunay(pts) {
+        return Delaunay.from(pts);
+    }
 }
 exports.Create = Create;
+/**
+ * Perlin noise gradient indices
+ */
+const grad3 = [
+    [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0],
+    [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1],
+    [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1]
+];
+/**
+ * Perlin noise permutation table
+ */
+const permTable = [151, 160, 137, 91, 90, 15,
+    131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
+    190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+    88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
+    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
+    102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+    135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
+    5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
+    223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+    129, 22, 39, 253, 9, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
+    251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
+    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
+    138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
+];
+/**
+ * A class to generate Perlin noise. Currently it implements a basic 2D noise. More to follow.
+ * Based on https://gist.github.com/banksean/304522
+ */
+class Noise extends Pt_1.Pt {
+    /**
+     * Create a Noise Pt that's capable of generating noise
+     * @param args a list of numeric parameters, an array of numbers, or an object with {x,y,z,w} properties
+     */
+    constructor(...args) {
+        super(...args);
+        this.perm = [];
+        this._n = new Pt_1.Pt(0.01, 0.01);
+        // For easier index wrapping, double the permutation table length
+        this.perm = permTable.concat(permTable);
+    }
+    /**
+     * Set the initial noise values
+     * @param args a list of numeric parameters, an array of numbers, or an object with {x,y,z,w} properties
+     * @example `noise.initNoise( 0.01, 0.1 )`
+     */
+    initNoise(...args) {
+        this._n = new Pt_1.Pt(...args);
+    }
+    /**
+     * Add a small increment to the noise values
+     * @param x step in x dimension
+     * @param y step in y dimension
+     */
+    step(x = 0, y = 0) {
+        this._n.add(x, y);
+    }
+    /**
+     * Specify a seed for this Noise
+     * @param s seed value
+     */
+    seed(s) {
+        if (s > 0 && s < 1)
+            s *= 65536;
+        s = Math.floor(s);
+        if (s < 256)
+            s |= s << 8;
+        for (let i = 0; i < 255; i++) {
+            let v = (i & 1) ? permTable[i] ^ (s & 255) : permTable[i] ^ ((s >> 8) & 255);
+            this.perm[i] = this.perm[i + 256] = v;
+        }
+    }
+    /**
+     * Generate a 2D Perlin noise value
+     */
+    noise2D() {
+        let i = Math.floor(this._n[0]) % 255;
+        let j = Math.floor(this._n[1]) % 255;
+        let x = (this._n[0] % 255) - i;
+        let y = (this._n[1] % 255) - j;
+        let n00 = LinearAlgebra_1.Vec.dot(grad3[(i + this.perm[j]) % 12], [x, y, 0]);
+        let n01 = LinearAlgebra_1.Vec.dot(grad3[(i + this.perm[j + 1]) % 12], [x, y - 1, 0]);
+        let n10 = LinearAlgebra_1.Vec.dot(grad3[(i + 1 + this.perm[j]) % 12], [x - 1, y, 0]);
+        let n11 = LinearAlgebra_1.Vec.dot(grad3[(i + 1 + this.perm[j + 1]) % 12], [x - 1, y - 1, 0]);
+        let _fade = (f) => f * f * f * (f * (f * 6 - 15) + 10);
+        let tx = _fade(x);
+        return Num_1.Num.lerp(Num_1.Num.lerp(n00, n10, tx), Num_1.Num.lerp(n01, n11, tx), _fade(y));
+    }
+}
+exports.Noise = Noise;
+/**
+ * Delaunay is a Group of Pts that can generate Delaunay and Voronoi tessellations. The triangulation algorithm is ported from [Pt](https://github.com/williamngan/pt)
+ * This implementation is based on [Paul Bourke's algorithm](http://paulbourke.net/papers/triangulate/)
+ * with reference to its [javascript implementation by ironwallaby](https://github.com/ironwallaby/delaunay)
+ */
+class Delaunay extends Pt_1.Group {
+    constructor() {
+        super(...arguments);
+        this._mesh = [];
+    }
+    /**
+     * Generate Delaunay triangles. This function also caches the mesh that is used to generate Voronoi tessellation in `voronoi()`.
+     * @param triangleOnly if true, returns an array of triangles in Groups, otherwise return the whole DelaunayShape
+     * @returns an array of Groups or an array of DelaunayShapes `{i, j, k, triangle, circle}` which records the indices of the vertices, and the calculated triangles and circumcircles
+     */
+    delaunay(triangleOnly = true) {
+        if (this.length < 3)
+            return [];
+        this._mesh = [];
+        let n = this.length;
+        // sort the points and store the sorted index
+        let indices = [];
+        for (let i = 0; i < n; i++)
+            indices[i] = i;
+        indices.sort((i, j) => this[j][0] - this[i][0]);
+        // duplicate the points list and add super triangle's points to it
+        let pts = this.slice();
+        let st = this._superTriangle();
+        pts = pts.concat(st);
+        // arrays to store edge buffer and opened triangles
+        let opened = [this._circum(n, n + 1, n + 2, st)];
+        let closed = [];
+        let tris = [];
+        // Go through each point using the sorted indices
+        for (let i = 0, len = indices.length; i < len; i++) {
+            let c = indices[i];
+            let edges = [];
+            let j = opened.length;
+            if (!this._mesh[c])
+                this._mesh[c] = {};
+            // Go through each opened triangles
+            while (j--) {
+                let circum = opened[j];
+                let radius = circum.circle[1][0];
+                let d = pts[c].$subtract(circum.circle[0]);
+                // if point is to the right of circumcircle, add it to closed list and don't check again
+                if (d[0] > 0 && d[0] * d[0] > radius * radius) {
+                    closed.push(circum);
+                    tris.push(circum.triangle);
+                    opened.splice(j, 1);
+                    continue;
+                }
+                // if it's outside the circumcircle, skip
+                if (d[0] * d[0] + d[1] * d[1] - radius * radius > Util_1.Const.epsilon) {
+                    continue;
+                }
+                // otherwise it's inside the circumcircle, so we add to edge buffer and remove it from the opened list
+                edges.push(circum.i, circum.j, circum.j, circum.k, circum.k, circum.i);
+                opened.splice(j, 1);
+            }
+            // dedup edges
+            Delaunay._dedupe(edges);
+            // Go through the edge buffer and create a triangle for each edge
+            j = edges.length;
+            while (j > 1) {
+                opened.push(this._circum(edges[--j], edges[--j], c, false, pts));
+            }
+        }
+        for (let i = 0, len = opened.length; i < len; i++) {
+            let o = opened[i];
+            if (o.i < n && o.j < n && o.k < n) {
+                closed.push(o);
+                tris.push(o.triangle);
+                this._cache(o);
+            }
+        }
+        return (triangleOnly) ? tris : closed;
+    }
+    /**
+     * Generate Voronoi cells. `delaunay()` must be called before calling this function.
+     * @returns an array of Groups, each of which represents a Voronoi cell
+     */
+    voronoi() {
+        let vs = [];
+        let n = this._mesh;
+        for (let i = 0, len = n.length; i < len; i++) {
+            vs.push(this.neighborPts(i, true));
+        }
+        return vs;
+    }
+    /**
+     * Get the cached mesh. The mesh is an array of objects, each of which representing the enclosing triangles around a Pt in this Delaunay group
+     * @return an array of objects that store a series of DelaunayShapes
+     */
+    mesh() {
+        return this._mesh;
+    }
+    /**
+     * Given an index of a Pt in this Delaunay Group, returns its neighboring Pts in the network
+     * @param i index of a Pt
+     * @param sort if true, sort the neighbors so that their edges will form a polygon
+     * @returns an array of Pts
+     */
+    neighborPts(i, sort = false) {
+        let cs = new Pt_1.Group();
+        let n = this._mesh;
+        for (let k in n[i]) {
+            if (n[i].hasOwnProperty(k))
+                cs.push(n[i][k].circle[0]);
+        }
+        return (sort) ? Num_1.Geom.sortEdges(cs) : cs;
+    }
+    /**
+     * Given an index of a Pt in this Delaunay Group, returns its neighboring DelaunayShapes
+     * @param i index of a Pt
+     * @returns an array of DelaunayShapes `{i, j, k, triangle, circle}`
+     */
+    neighbors(i) {
+        let cs = [];
+        let n = this._mesh;
+        for (let k in n[i]) {
+            if (n[i].hasOwnProperty(k))
+                cs.push(n[i][k]);
+        }
+        return cs;
+    }
+    /**
+     * Record a DelaunayShape in the mesh
+     * @param o DelaunayShape instance
+     */
+    _cache(o) {
+        this._mesh[o.i][`${Math.min(o.j, o.k)}-${Math.max(o.j, o.k)}`] = o;
+        this._mesh[o.j][`${Math.min(o.i, o.k)}-${Math.max(o.i, o.k)}`] = o;
+        this._mesh[o.k][`${Math.min(o.i, o.j)}-${Math.max(o.i, o.j)}`] = o;
+    }
+    /**
+     * Get the initial "super triangle" that contains all the points in this set
+     * @returns a Group representing a triangle
+     */
+    _superTriangle() {
+        let minPt = this[0];
+        let maxPt = this[0];
+        for (let i = 1, len = this.length; i < len; i++) {
+            minPt = minPt.$min(this[i]);
+            maxPt = maxPt.$max(this[i]);
+        }
+        let d = maxPt.$subtract(minPt);
+        let mid = minPt.$add(maxPt).divide(2);
+        let dmax = Math.max(d[0], d[1]);
+        return new Pt_1.Group(mid.$subtract(20 * dmax, dmax), mid.$add(0, 20 * dmax), mid.$add(20 * dmax, -dmax));
+    }
+    /**
+     * Get a triangle from 3 points in a list of points
+     * @param i index 1
+     * @param j index 2
+     * @param k index 3
+     * @param pts a Group of Pts
+     */
+    _triangle(i, j, k, pts = this) {
+        return new Pt_1.Group(pts[i], pts[j], pts[k]);
+    }
+    /**
+     * Get a circumcircle and triangle from 3 points in a list of points
+     * @param i index 1
+     * @param j index 2
+     * @param k index 3
+     * @param tri a Group representing a triangle, or `false` to create it from indices
+     * @param pts a Group of Pts
+     */
+    _circum(i, j, k, tri, pts = this) {
+        let t = tri || this._triangle(i, j, k, pts);
+        return {
+            i: i,
+            j: j,
+            k: k,
+            triangle: t,
+            circle: Op_1.Triangle.circumcircle(t)
+        };
+    }
+    /**
+     * Dedupe the edges array
+     * @param edges
+     */
+    static _dedupe(edges) {
+        let j = edges.length;
+        while (j > 1) {
+            let b = edges[--j];
+            let a = edges[--j];
+            let i = j;
+            while (i > 1) {
+                let n = edges[--i];
+                let m = edges[--i];
+                if ((a == m && b == n) || (a == n && b == m)) {
+                    edges.splice(j, 2);
+                    edges.splice(i, 2);
+                    break;
+                }
+            }
+        }
+        return edges;
+    }
+}
+exports.Delaunay = Delaunay;
 
 
 /***/ }),
-/* 11 */
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0. 
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Form_1 = __webpack_require__(6);
+const Num_1 = __webpack_require__(3);
+const Util_1 = __webpack_require__(1);
+const Pt_1 = __webpack_require__(0);
+const Op_1 = __webpack_require__(2);
+const Dom_1 = __webpack_require__(8);
+/**
+ * A Space for SVG elements
+ */
+class SVGSpace extends Dom_1.DOMSpace {
+    /**
+    * Create a SVGSpace which represents a Space for SVG elements
+    * @param elem Specify an element by its "id" attribute as string, or by the element object itself. An element can be an existing `<svg>`, or a `<div>` container in which a new `<svg>` will be created. If left empty, a `<div id="pt_container"><svg id="pt" /></div>` will be added to DOM. Use css to customize its appearance if needed.
+    * @param callback an optional callback `function(boundingBox, spaceElement)` to be called when canvas is appended and ready. Alternatively, a "ready" event will also be fired from the `<svg>` element when it's appended, which can be traced with `spaceInstance.canvas.addEventListener("ready")`
+    * @example `new SVGSpace( "#myElementID" )`
+    */
+    constructor(elem, callback) {
+        super(elem, callback);
+        this.id = "svgspace";
+        this._bgcolor = "#999";
+        if (this._canvas.nodeName.toLowerCase() != "svg") {
+            let s = SVGSpace.svgElement(this._canvas, "svg", `${this.id}_svg`);
+            this._container = this._canvas;
+            this._canvas = s;
+        }
+    }
+    /**
+    * Get a new `SVGForm` for drawing
+    * @see `SVGForm`
+    */
+    getForm() { return new SVGForm(this); }
+    /**
+    * Get the html element
+    */
+    get element() {
+        return this._canvas;
+    }
+    /**
+    * This overrides Space's `resize` function. It's used as a callback function for window's resize event and not usually called directly. You can keep track of resize events with `resize: (bound ,evt)` callback in your player objects (See `Space`'s `add()` function).
+    * @param b a Bound object to resize to
+    * @param evt Optionally pass a resize event
+    */
+    resize(b, evt) {
+        super.resize(b, evt);
+        SVGSpace.setAttr(this.element, {
+            "viewBox": `0 0 ${this.bound.width} ${this.bound.height}`,
+            "width": `${this.bound.width}`,
+            "height": `${this.bound.height}`,
+            "xmlns": "http://www.w3.org/2000/svg",
+            "version": "1.1"
+        });
+        return this;
+    }
+    /**
+     * A static function to add a svg element inside a node. Usually you don't need to use this directly. See methods in `SVGForm` instead.
+     * @param parent the parent element, or `null` to use current `<svg>` as parent.
+     * @param name a string of element name,  such as `rect` or `circle`
+     * @param id id attribute of the new element
+     */
+    static svgElement(parent, name, id) {
+        if (!parent || !parent.appendChild)
+            throw new Error("parent is not a valid DOM element");
+        let elem = document.querySelector(`#${id}`);
+        if (!elem) {
+            elem = document.createElementNS("http://www.w3.org/2000/svg", name);
+            elem.setAttribute("id", id);
+            parent.appendChild(elem);
+        }
+        return elem;
+    }
+    /**
+    * Remove an item from this Space
+    * @param item a player item with an auto-assigned `animateID` property
+    */
+    remove(player) {
+        let temp = this._container.querySelectorAll("." + SVGForm.scopeID(player));
+        temp.forEach((el) => {
+            el.parentNode.removeChild(el);
+        });
+        return super.remove(player);
+    }
+    /**
+     * Remove all items from this Space
+     */
+    removeAll() {
+        this._container.innerHTML = "";
+        return super.removeAll();
+    }
+}
+exports.SVGSpace = SVGSpace;
+/**
+* SVGForm is an implementation of abstract class VisualForm. It provide methods to express Pts on SVGSpace.
+* You may extend SVGForm to implement your own expressions for SVGSpace.
+*/
+class SVGForm extends Form_1.VisualForm {
+    /**
+    * Create a new SVGForm. You may also use `space.getForm()` to get the default form.
+    * @param space an instance of SVGSpace
+    */
+    constructor(space) {
+        super();
+        this._ctx = {
+            group: null,
+            groupID: "pts",
+            groupCount: 0,
+            currentID: "pts0",
+            currentClass: "",
+            style: {
+                "filled": true,
+                "stroked": true,
+                "fill": "#f03",
+                "stroke": "#fff",
+                "stroke-width": 1,
+                "stroke-linejoin": "bevel",
+                "stroke-linecap": "sqaure"
+            },
+            font: "11px sans-serif",
+            fontSize: 11,
+            fontFamily: "sans-serif"
+        };
+        this._ready = false;
+        this._space = space;
+        this._space.add({ start: () => {
+                this._ctx.group = this._space.element;
+                this._ctx.groupID = "pts_svg_" + (SVGForm.groupID++);
+                this._ready = true;
+            } });
+    }
+    /**
+    * get the SVGSpace instance that this form is associated with
+    */
+    get space() { return this._space; }
+    /**
+     * Update a style in _ctx context or throw an Erorr if the style doesn't exist
+     * @param k style key
+     * @param v  style value
+     */
+    styleTo(k, v) {
+        if (this._ctx.style[k] === undefined)
+            throw new Error(`${k} style property doesn't exist`);
+        this._ctx.style[k] = v;
+    }
+    /**
+      * Set current fill style. Provide a valid color string or `false` to specify no fill color.
+      * @example `form.fill("#F90")`, `form.fill("rgba(0,0,0,.5")`, `form.fill(false)`
+      * @param c fill color
+      */
+    fill(c) {
+        if (typeof c == "boolean") {
+            this.styleTo("filled", c);
+        }
+        else {
+            this.styleTo("filled", true);
+            this.styleTo("fill", c);
+        }
+        return this;
+    }
+    /**
+      * Set current stroke style. Provide a valid color string or `false` to specify no stroke color.
+      * @example `form.stroke("#F90")`, `form.stroke("rgba(0,0,0,.5")`, `form.stroke(false)`, `form.stroke("#000", 0.5, 'round', 'square')`
+      * @param c stroke color which can be as color, gradient, or pattern. (See [canvas documentation](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle))
+      * @param width Optional value (can be floating point) to set line width
+      * @param linejoin Optional string to set line joint style. Can be "miter", "bevel", or "round".
+      * @param linecap Optional string to set line cap style. Can be "butt", "round", or "square".
+      */
+    stroke(c, width, linejoin, linecap) {
+        if (typeof c == "boolean") {
+            this.styleTo("stroked", c);
+        }
+        else {
+            this.styleTo("stroked", true);
+            this.styleTo("stroke", c);
+            if (width)
+                this.styleTo("stroke-width", width);
+            if (linejoin)
+                this.styleTo("stroke-linejoin", linejoin);
+            if (linecap)
+                this.styleTo("stroke-linecap", linecap);
+        }
+        return this;
+    }
+    /**
+     * Add custom class to the created element
+     * @param c custom class name or `false` to reset it
+     * @example `form.fill("#f00").cls("myClass").rects(r)` `form.cls(false).circles(c)`
+     */
+    cls(c) {
+        if (typeof c == "boolean") {
+            this._ctx.currentClass = "";
+        }
+        else {
+            this._ctx.currentClass = c;
+        }
+        return this;
+    }
+    /**
+    * Set the current font
+    * @param sizeOrFont either a number to specify font-size, or a `Font` object to specify all font properties
+    * @param weight Optional font-weight string such as "bold"
+    * @param style Optional font-style string such as "italic"
+    * @param lineHeight Optional line-height number suchas 1.5
+    * @param family Optional font-family such as "Helvetica, sans-serif"
+    * @example `form.font( myFont )`, `form.font(14, "bold")`
+    */
+    font(sizeOrFont, weight, style, lineHeight, family) {
+        if (typeof sizeOrFont == "number") {
+            this._font.size = sizeOrFont;
+            if (family)
+                this._font.face = family;
+            if (weight)
+                this._font.weight = weight;
+            if (style)
+                this._font.style = style;
+            if (lineHeight)
+                this._font.lineHeight = lineHeight;
+            this._ctx.font = this._font.value;
+        }
+        else {
+            this._font = sizeOrFont;
+        }
+        return this;
+    }
+    /**
+    * Reset the context's common styles to this form's styles. This supports using multiple forms on the same canvas context.
+    */
+    reset() {
+        this._ctx.style = {
+            "filled": true, "stroked": true,
+            "fill": "#f03", "stroke": "#fff",
+            "stroke-width": 1,
+            "stroke-linejoin": "bevel",
+            "stroke-linecap": "sqaure"
+        };
+        this._font = new Form_1.Font(14, "sans-serif");
+        this._ctx.font = this._font.value;
+        return this;
+    }
+    /**
+     * Set this form's group scope by an ID, and optionally define the group's parent element. A group scope keeps track of elements by their generated IDs, and updates their properties as needed. See also `scope()`.
+     * @param group_id a string to use as prefix for the group's id. For example, group_id "hello" will create elements with id like "hello-1", "hello-2", etc
+     * @param group Optional DOM or SVG element to define this group's parent element
+     * @returns this form's context
+     */
+    updateScope(group_id, group) {
+        this._ctx.group = group;
+        this._ctx.groupID = group_id;
+        this._ctx.groupCount = 0;
+        this.nextID();
+        return this._ctx;
+    }
+    /**
+     * Set the current group scope to an item added into space, in order to keep track of any point, circle, etc created within it. The item must have an `animateID` property, so that elements created within the item will have generated IDs like "item-{animateID}-{count}".
+     * @param item a "player" item that's added to space (see `space.add(...)`) and has an `animateID` property
+     * @returns this form's context
+     */
+    scope(item) {
+        if (!item || item.animateID == null)
+            throw new Error("item not defined or not yet added to Space");
+        return this.updateScope(SVGForm.scopeID(item), this.space.element);
+    }
+    /**
+     * Get next available id in the current group
+     * @returns an id string
+     */
+    nextID() {
+        this._ctx.groupCount++;
+        this._ctx.currentID = `${this._ctx.groupID}-${this._ctx.groupCount}`;
+        return this._ctx.currentID;
+    }
+    /**
+     * A static function to generate an ID string based on a context object
+     * @param ctx a context object for an SVGForm
+     */
+    static getID(ctx) {
+        return ctx.currentID || `p-${SVGForm.domID++}`;
+    }
+    /**
+     * A static function to generate an ID string for a scope, based on a "player" item in the Space
+     * @param item a "player" item that's added to space (see `space.add(...)`) and has an `animateID` property
+     */
+    static scopeID(item) {
+        return `item-${item.animateID}`;
+    }
+    /**
+     * A static function to help adding style object to an element. This put all styles into `style` attribute instead of individual attributes, so that the styles can be parsed by Adobe Illustrator.
+     * @param elem A DOM element to add to
+     * @param styles an object of style properties
+     * @example `SVGForm.style(elem, {fill: "#f90", stroke: false})`
+     * @returns this DOM element
+     */
+    static style(elem, styles) {
+        let st = [];
+        if (!styles["filled"])
+            st.push("fill: none");
+        if (!styles["stroked"])
+            st.push("stroke: none");
+        for (let k in styles) {
+            if (styles.hasOwnProperty(k) && k != "filled" && k != "stroked") {
+                let v = styles[k];
+                if (v) {
+                    if (!styles["filled"] && k.indexOf('fill') === 0) {
+                        continue;
+                    }
+                    else if (!styles["stroked"] && k.indexOf('stroke') === 0) {
+                        continue;
+                    }
+                    else {
+                        st.push(`${k}: ${v}`);
+                    }
+                }
+            }
+        }
+        return Dom_1.DOMSpace.setAttr(elem, { style: st.join(";") });
+    }
+    /**
+      * Draws a point
+      * @param ctx a context object of SVGForm
+      * @param pt a Pt object or numeric array
+      * @param radius radius of the point. Default is 5.
+      * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
+      * @example `SVGForm.point( p )`, `SVGForm.point( p, 10, "circle" )`
+      */
+    static point(ctx, pt, radius = 5, shape = "square") {
+        if (shape === "circle") {
+            return SVGForm.circle(ctx, pt, radius);
+        }
+        else {
+            return SVGForm.square(ctx, pt, radius);
+        }
+    }
+    /**
+      * Draws a point
+      * @param p a Pt object
+      * @param radius radius of the point. Default is 5.
+      * @param shape The shape of the point. Defaults to "square", but it can be "circle" or a custom shape function in your own implementation.
+      * @example `form.point( p )`, `form.point( p, 10, "circle" )`
+      */
+    point(pt, radius = 5, shape = "square") {
+        this.nextID();
+        SVGForm.point(this._ctx, pt, radius, shape);
+        return this;
+    }
+    /**
+      * A static function to draw a circle
+      * @param ctx a context object of SVGForm
+      * @param pt center position of the circle
+      * @param radius radius of the circle
+      */
+    static circle(ctx, pt, radius = 10) {
+        let elem = SVGSpace.svgElement(ctx.group, "circle", SVGForm.getID(ctx));
+        Dom_1.DOMSpace.setAttr(elem, {
+            cx: pt[0],
+            cy: pt[1],
+            r: radius,
+            'class': `pts-svgform pts-circle ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+      * Draw a circle
+      * @param pts usually a Group of 2 Pts, but it can also take an array of two numeric arrays [ [position], [size] ]
+      * @see [`Circle.fromCenter`](./_op_.circle.html#frompt)
+      */
+    circle(pts) {
+        this.nextID();
+        SVGForm.circle(this._ctx, pts[0], pts[1][0]);
+        return this;
+    }
+    /**
+      * A static function to draw an arc.
+      * @param ctx a context object of SVGForm
+      * @param pt center position
+      * @param radius radius of the arc circle
+      * @param startAngle start angle of the arc
+      * @param endAngle end angle of the arc
+      * @param cc an optional boolean value to specify if it should be drawn clockwise (`false`) or counter-clockwise (`true`). Default is clockwise.
+      */
+    static arc(ctx, pt, radius, startAngle, endAngle, cc) {
+        let elem = SVGSpace.svgElement(ctx.group, "path", SVGForm.getID(ctx));
+        const start = new Pt_1.Pt(pt).toAngle(startAngle, radius, true);
+        const end = new Pt_1.Pt(pt).toAngle(endAngle, radius, true);
+        const diff = Num_1.Geom.boundAngle(endAngle) - Num_1.Geom.boundAngle(startAngle);
+        let largeArc = (diff > Util_1.Const.pi) ? true : false;
+        if (cc)
+            largeArc = !largeArc;
+        const sweep = (cc) ? "0" : "1";
+        const d = `M ${start[0]} ${start[1]} A ${radius} ${radius} 0 ${largeArc ? "1" : "0"} ${sweep} ${end[0]} ${end[1]}`;
+        Dom_1.DOMSpace.setAttr(elem, {
+            d: d,
+            'class': `pts-svgform pts-arc ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+      * Draw an arc.
+      * @param pt center position
+      * @param radius radius of the arc circle
+      * @param startAngle start angle of the arc
+      * @param endAngle end angle of the arc
+      * @param cc an optional boolean value to specify if it should be drawn clockwise (`false`) or counter-clockwise (`true`). Default is clockwise.
+      */
+    arc(pt, radius, startAngle, endAngle, cc) {
+        this.nextID();
+        SVGForm.arc(this._ctx, pt, radius, startAngle, endAngle, cc);
+        return this;
+    }
+    /**
+      * A static function to draw a square
+      * @param ctx a context object of SVGForm
+      * @param pt center position of the square
+      * @param halfsize half size of the square
+      */
+    static square(ctx, pt, halfsize) {
+        let elem = SVGSpace.svgElement(ctx.group, "rect", SVGForm.getID(ctx));
+        Dom_1.DOMSpace.setAttr(elem, {
+            x: pt[0] - halfsize,
+            y: pt[1] - halfsize,
+            width: halfsize * 2,
+            height: halfsize * 2,
+            'class': `pts-svgform pts-square ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+     * Draw a square, given a center and its half-size
+     * @param pt center Pt
+     * @param halfsize half-size
+     */
+    square(pt, halfsize) {
+        this.nextID();
+        SVGForm.square(this._ctx, pt, halfsize);
+        return this;
+    }
+    /**
+    * A static function to draw a line
+    * @param ctx a context object of SVGForm
+    * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
+    */
+    static line(ctx, pts) {
+        if (!this._checkSize(pts))
+            return;
+        if (pts.length > 2)
+            return SVGForm._poly(ctx, pts, false);
+        let elem = SVGSpace.svgElement(ctx.group, "line", SVGForm.getID(ctx));
+        Dom_1.DOMSpace.setAttr(elem, {
+            x1: pts[0][0],
+            y1: pts[0][1],
+            x2: pts[1][0],
+            y2: pts[1][1],
+            'class': `pts-svgform pts-line ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+    * Draw a line or polyline
+    * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
+    */
+    line(pts) {
+        this.nextID();
+        SVGForm.line(this._ctx, pts);
+        return this;
+    }
+    /**
+     * A static helper function to draw polyline or polygon
+     * @param ctx a context object of SVGForm
+     * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
+     * @param closePath a boolean to specify if the polygon path should be closed
+     */
+    static _poly(ctx, pts, closePath = true) {
+        if (!this._checkSize(pts))
+            return;
+        let elem = SVGSpace.svgElement(ctx.group, ((closePath) ? "polygon" : "polyline"), SVGForm.getID(ctx));
+        let points = pts.reduce((a, p) => a + `${p[0]},${p[1]} `, "");
+        Dom_1.DOMSpace.setAttr(elem, {
+            points: points,
+            'class': `pts-svgform pts-polygon ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+      * A static function to draw polygon
+      * @param ctx a context object of SVGForm
+      * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
+      */
+    static polygon(ctx, pts) {
+        return SVGForm._poly(ctx, pts, true);
+    }
+    /**
+    * Draw a polygon
+    * @param pts a Group of multiple Pts, or an array of multiple numeric arrays
+    */
+    polygon(pts) {
+        this.nextID();
+        SVGForm.polygon(this._ctx, pts);
+        return this;
+    }
+    /**
+    * A static function to draw a rectangle
+    * @param ctx a context object of SVGForm
+    * @param pts usually a Group of 2 Pts specifying the top-left and bottom-right positions. Alternatively it can be an array of numeric arrays.
+    */
+    static rect(ctx, pts) {
+        if (!this._checkSize(pts))
+            return;
+        let elem = SVGSpace.svgElement(ctx.group, "rect", SVGForm.getID(ctx));
+        let bound = Pt_1.Group.fromArray(pts).boundingBox();
+        let size = Op_1.Rectangle.size(bound);
+        Dom_1.DOMSpace.setAttr(elem, {
+            x: bound[0][0],
+            y: bound[0][1],
+            width: size[0],
+            height: size[1],
+            'class': `pts-svgform pts-rect ${ctx.currentClass}`,
+        });
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+      * Draw a rectangle
+      * @param pts usually a Group of 2 Pts specifying the top-left and bottom-right positions. Alternatively it can be an array of numeric arrays.
+      */
+    rect(pts) {
+        this.nextID();
+        SVGForm.rect(this._ctx, pts);
+        return this;
+    }
+    /**
+      * A static function to draw text
+      * @param ctx a context object of SVGForm
+      * @param `pt` a Point object to specify the anchor point
+      * @param `txt` a string of text to draw
+      * @param `maxWidth` specify a maximum width per line
+      */
+    static text(ctx, pt, txt) {
+        let elem = SVGSpace.svgElement(ctx.group, "text", SVGForm.getID(ctx));
+        Dom_1.DOMSpace.setAttr(elem, {
+            "pointer-events": "none",
+            x: pt[0],
+            y: pt[1],
+            dx: 0, dy: 0,
+            'class': `pts-svgform pts-text ${ctx.currentClass}`,
+        });
+        elem.textContent = txt;
+        SVGForm.style(elem, ctx.style);
+        return elem;
+    }
+    /**
+      * Draw text on canvas
+      * @param `pt` a Pt or numeric array to specify the anchor point
+      * @param `txt` text
+      * @param `maxWidth` specify a maximum width per line
+      */
+    text(pt, txt) {
+        this.nextID();
+        SVGForm.text(this._ctx, pt, txt);
+        return this;
+    }
+    /**
+      * A convenient way to draw some text on canvas for logging or debugging. It'll be draw on the top-left of the canvas as an overlay.
+      * @param txt text
+      */
+    log(txt) {
+        this.fill("#000").stroke("#fff", 0.5).text([10, 14], txt);
+        return this;
+    }
+}
+SVGForm.groupID = 0;
+SVGForm.domID = 0;
+exports.SVGForm = SVGForm;
+
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// Source code licensed under Apache License 2.0.
+// Copyright © 2017 William Ngan. (https://github.com/williamngan/pts)
+Object.defineProperty(exports, "__esModule", { value: true });
+const Op_1 = __webpack_require__(2);
+/**
+ * An enumeration of different UI types
+ */
+var UIShape;
+(function (UIShape) {
+    UIShape[UIShape["Rectangle"] = 0] = "Rectangle";
+    UIShape[UIShape["Circle"] = 1] = "Circle";
+    UIShape[UIShape["Polygon"] = 2] = "Polygon";
+    UIShape[UIShape["Polyline"] = 3] = "Polyline";
+    UIShape[UIShape["Line"] = 4] = "Line";
+})(UIShape = exports.UIShape || (exports.UIShape = {}));
+exports.UIPointerActions = {
+    up: "up", down: "down", move: "move", drag: "drag", drop: "drop", over: "over", out: "out"
+};
+class UI {
+    /**
+     * Wrap an UI insider a group
+     */
+    constructor(group, shape, states, id) {
+        this.group = group;
+        this.shape = shape;
+        this._id = id;
+        this._states = states;
+        this._actions = {};
+    }
+    /**
+     * Get and set uique id
+     */
+    get id() { return this._id; }
+    set id(d) { this._id = d; }
+    /**
+     * Get a state
+     * @param key state's name
+     */
+    state(key) {
+        return this._states[key] || false;
+    }
+    /**
+     * Add an event handler
+     * @param key event key
+     * @param fn handler function
+     */
+    on(key, fn) {
+        this._actions[key] = fn;
+        return this;
+    }
+    /**
+     * Remove an event handler
+     * @param key even key
+     * @param fn
+     */
+    off(key) {
+        delete this._actions[key];
+        return this;
+    }
+    /**
+     * Listen for interactions and trigger action handlers
+     * @param key action key
+     * @param p point to check
+     */
+    listen(key, p) {
+        if (this._actions[key] !== undefined) {
+            if (this._trigger(p)) {
+                this._actions[key](p, this, key);
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Take a custom render function to render this UI
+     * @param fn render function
+     */
+    render(fn) {
+        fn(this.group, this._states);
+    }
+    /**
+     * Check intersection using a specific function based on UIShape
+     * @param p a point to check
+     */
+    _trigger(p) {
+        let fn = null;
+        if (this.shape === UIShape.Rectangle) {
+            fn = Op_1.Rectangle.withinBound;
+        }
+        else if (this.shape === UIShape.Circle) {
+            fn = Op_1.Circle.withinBound;
+        }
+        else if (this.shape === UIShape.Polygon) {
+            fn = Op_1.Rectangle.withinBound;
+        }
+        else {
+            return false;
+        }
+        return fn(this.group, p);
+    }
+}
+exports.UI = UI;
+/**
+ * A simple UI button that can track clicks and hovers
+ */
+class UIButton extends UI {
+    constructor(group, shape, states, id) {
+        super(group, shape, states, id);
+        this._clicks = 0;
+    }
+    /**
+     * Get the total number of clicks on this UIButton
+     */
+    get clicks() { return this._clicks; }
+    /**
+     * Add a click handler
+     * @param fn a function to handle clicks
+     */
+    onClick(fn) {
+        this._clicks++;
+        this.on(exports.UIPointerActions.up, fn);
+    }
+    /**
+     * Add hover handler
+     * @param over a function to handle when pointer enters hover
+     * @param out a function to handle when pointer exits hover
+     */
+    onHover(over, out) {
+        this.on(exports.UIPointerActions.over, over);
+        this.on(exports.UIPointerActions.out, out);
+    }
+}
+exports.UIButton = UIButton;
+
+
+/***/ }),
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _Bound = __webpack_require__(4);
-const _Canvas = __webpack_require__(8);
-const _Create = __webpack_require__(10);
+const _Bound = __webpack_require__(5);
+const _Canvas = __webpack_require__(10);
+const _Create = __webpack_require__(12);
 const _Form = __webpack_require__(6);
-const _LinearAlgebra = __webpack_require__(2);
+const _LinearAlgebra = __webpack_require__(4);
 const _Num = __webpack_require__(3);
-const _Op = __webpack_require__(5);
+const _Op = __webpack_require__(2);
 const _Pt = __webpack_require__(0);
 const _Space = __webpack_require__(7);
-const _Color = __webpack_require__(9);
+const _Color = __webpack_require__(11);
 const _Util = __webpack_require__(1);
-// A function to switch scope for Pts library. eg, Pts.scope( Pts, window );
-let namespace = (sc) => {
-    let lib = module.exports;
-    for (let k in lib) {
-        if (k != "namespace") {
-            sc[k] = lib[k];
-        }
-    }
-};
-module.exports = Object.assign({ namespace }, _Bound, _Canvas, _Create, _Form, _LinearAlgebra, _Op, _Num, _Pt, _Space, _Util, _Color);
+const _Dom = __webpack_require__(8);
+const _Svg = __webpack_require__(13);
+const _Typography = __webpack_require__(9);
+module.exports = Object.assign({}, _Bound, _Canvas, _Create, _Form, _LinearAlgebra, _Op, _Num, _Pt, _Space, _Util, _Color, _Dom, _Svg, _Typography);
 
 
 /***/ })
 /******/ ]);
 });
-//# sourceMappingURL=pts.js.map
 
 /***/ }),
 /* 182 */
@@ -27538,4 +29859,4 @@ registerValidSW(swUrl);}}).catch(function(){console.log('No internet connection 
 
 /***/ })
 /******/ ]);
-//# sourceMappingURL=main.d5011f9b.js.map
+//# sourceMappingURL=main.3e303289.js.map
