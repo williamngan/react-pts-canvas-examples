@@ -2,6 +2,7 @@
   "name": "sample",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "pts": "^0.5.0",
     "react": "^15.6.1",
