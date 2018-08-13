@@ -96,11 +96,11 @@ export class AnimationExample extends PtsCanvas {
     if (!this.noiseGrid) return;
 
     // Use pointer position to change speed
-    let speed = this.space.pointer.$subtract( this.space.center ).divide( this.space.center );
+    let speed = this.space.pointer.$subtract( this.space.center ).divide( this.space.center ).abs();
 
     // Generate noise in a grid
     this.noiseGrid.forEach( (p) => {
-      p.step( 0.01*speed.x, 0.01*(1-speed.y) );
+      p.step( 0.01*(1-speed.x), 0.01*(1-speed.y) );
       this.form.fillOnly("#123").point( p, Math.abs( p.noise2D() * this.space.size.x/18 ), "circle" );
     });
 
