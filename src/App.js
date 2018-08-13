@@ -77,7 +77,7 @@ class App extends Component {
   loop: true
 }`}          
           </Highlight>
-          <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsChart.jsx">Source Code</a></p>
+          <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsCanvas.jsx">Source Code</a></p>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ class App extends Component {
 />`}
             </Highlight>
             <p>AnimationExample extends PtsCanvas and overrides the <code>animate</code> function to implement a custom animation. It only takes a couple lines of code!</p>
-            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExample.jsx#L59">Source Code</a></p>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx#L59">Source Code</a></p>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ class App extends Component {
     variance={this.state.variance} 
 />`}
             </Highlight>
-            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExample.jsx#L8">Source Code</a></p>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx#L8">Source Code</a></p>
           </div>
         </div>
         

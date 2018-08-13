@@ -6,7 +6,7 @@ This project provides examples of using [Pts](https://github.com/williamngan/pts
 
 - Take a look at [the demo](https://williamngan.github.io/pts-react-example/build/).
 - Download or clone this repo and run `npm install`. Once installed, run `npm start`.
-- Quick start by extending the base [`PtsComponent`](https://github.com/williamngan/pts-react-example/blob/master/src/PtsComponent.jsx) to create your custom component. See components in [`PtsExamples`](https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx) that use this approach.
+- Quick start by extending the base [`PtsCanvas`](https://github.com/williamngan/pts-react-example/blob/master/src/PtsCanvas.jsx) to create your custom component. See components in [`PtsExamples`](https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx) that use this approach.
 - You can also use the [online demo editor](http://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
 - Not yet recommended for use in production builds. See notes below.
 
