@@ -1,31 +1,22 @@
 {
   "name": "pts-react-example",
-  "version": "0.2.0",
-  "private": true,
-  "homepage": ".",
+  "version": "0.3.0",
+  "main": "index.js",
+  "license": "Apache License 2.0",
+  "scripts": {
+    "build": "neutrino build",
+    "start": "neutrino start"
+  },
   "dependencies": {
-    "pts": "^0.5.2",
+    "prop-types": "^15.6.2",
+    "pts": "^0.6.0",
     "react": "^16.4.2",
     "react-dom": "^16.4.2",
     "react-highlight": "^0.12.0",
-    "react-scripts": "1.1.4"
+    "react-hot-loader": "^4.3.5"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
-  },
-  "browserslist": {
-    "development": [
-      "last 2 chrome versions",
-      "last 2 firefox versions",
-      "last 2 edge versions"
-    ],
-    "production": [
-      ">0.25%",
-      "not op_mini all",
-      "ie 11"
-    ]
+  "devDependencies": {
+    "@neutrinojs/react": "^8.3.0",
+    "neutrino": "^8.3.0"
   }
 }

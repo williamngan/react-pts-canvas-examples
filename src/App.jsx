@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PtsCanvas from "./PtsCanvas";
+import { Component } from 'react';
+import PtsCanvas from "./PtsCanvas"
 import {ChartExample, AnimationExample} from './PtsExamples';
 import './App.css';
 import './highlight-github.css';
 import Highlight from 'react-highlight'
 
-class App extends Component {
+export default class App extends Component {
   constructor( props ) {
     super( props );
 
@@ -39,7 +39,6 @@ class App extends Component {
   }
 
   componentWillUpdate(nextProps, nextState) {
-    console.log("will update", nextState);
     this.mockData( nextState.variance );
   }
 
@@ -123,5 +122,3 @@ class App extends Component {
     );
   }
 }
-
-export default App;
