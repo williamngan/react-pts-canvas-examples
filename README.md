@@ -10,26 +10,26 @@ Let's take a look at [the demo](https://williamngan.github.io/pts-react-example/
 
 ![screenshot](./screenshot.png)
 
----
+
 
 ## Using Pts with create-react-app
 [`create-react-app`](https://github.com/facebook/create-react-app) is a popular tool by Facebook to bootstrap a React application. 
 
 To get started, take a look at the README in [create_react_app_example](create_react_app_example) folder.
 
----
+
 
 ## Using Pts with neutrino.js
 [`neutrino.js`](https://neutrinojs.org/) is a new companion tool by Mozilla that can help you scaffold React, Vue, and other web and node projects
 
 To get started, take a look at the README in [neutrino_example](neutrino_example) folder.
 
----
+
 
 ## Quick Start
 If you just want to try out Pts, there's no need to install and build. Try out the [online demo editor](http://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
 
----
+
 
 ## Technical notes
 
@@ -45,7 +45,7 @@ Pts also provides an ES5 version for use in older builds. To use ES5, import a c
 import {Pt} from "pts/dist/es5"; // use ES5
 ```
 
----
+
 
 ## License
 Apache License 2.0. See LICENSE file for details.
