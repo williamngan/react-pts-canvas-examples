@@ -19,7 +19,7 @@ To get started, take a look at the README in [create_react_app_example](create_r
 
 ---
 
-## Using Pts with create-react-app
+## Using Pts with neutrino.js
 [`neutrino.js`](https://neutrinojs.org/) is a new companion tool by Mozilla that can help you scaffold React, Vue, and other web and node projects
 
 To get started, take a look at the README in [neutrino_example](neutrino_example) folder.

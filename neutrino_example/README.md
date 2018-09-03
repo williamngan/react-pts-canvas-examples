@@ -1,10 +1,10 @@
-# Using Pts with neutrino
+# Using Pts with neutrino.js
 
 [Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
 
 This project provides examples of using Pts in [React](https://github.com/facebook/react) components. It's built with Mozilla's [neutrino.js](https://neutrinojs.org). Neutrino is a companion tool which combines webpack with good presets. It's fairly simple to customize your own project using it.
 
-Also review the README in the [main repo folder](../) for other build options.
+Also review the README in the [main repo folder](https://github.com/williamngan/pts-react-example/) for other build options.
 
 ---
 
