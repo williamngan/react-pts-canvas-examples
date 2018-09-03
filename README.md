@@ -27,7 +27,7 @@ To get started, take a look at the README in [neutrino_example](neutrino_example
 
 
 ## Quick Start
-If you just want to try out Pts, there's no need to install and build. Try out the [online demo editor](http://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
+If you just want to try out Pts, there's no need to install and build. Try out the [online demo editor](https://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
 
 
 
