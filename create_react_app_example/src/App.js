@@ -76,7 +76,7 @@ export default class App extends Component {
   play: true
 }`}          
           </Highlight>
-          <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsCanvas.jsx">Source Code</a></p>
+          <p><a href="https://github.com/williamngan/react-pts-canvas" target="_blank">See react-pts-canvas repo</a></p>
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export default class App extends Component {
 />`}
             </Highlight>
             <p>AnimationExample extends PtsCanvas and overrides the <code>animate</code> function to implement a custom animation. It only takes a couple lines of code!</p>
-            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx#L59">Source Code</a></p>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/create_react_app_example/src/PtsExamples.jsx#L60">Source Code</a></p>
           </div>
         </div>
 
@@ -114,7 +114,7 @@ export default class App extends Component {
     variance={this.state.variance} 
 />`}
             </Highlight>
-            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsExamples.jsx#L8">Source Code</a></p>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/create_react_app_example/src/PtsExamples.jsx#L9">Source Code</a></p>
           </div>
         </div>
         

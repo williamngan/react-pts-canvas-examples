@@ -8,25 +8,16 @@ Also review the README in the [main repo folder](https://github.com/williamngan/
 
 
 
-## Usage
+## Running this example
 
-1. Download or clone this repo and then run `yarn install`. Once installed, run:
-    - `yarn start` to test in localhost
-    - `yarn build` to make a build.
-
-2. Quick start by extending the base [`PtsCanvas`](src/PtsCanvas.jsx) to create your custom component. See components in [`PtsExamples`](src/PtsExamples.jsx) that use this approach.
-3. Note that since `create-react-app` builds in ES5, we should import the ES5 version of Pts like this:   
-   
-    ```javascript
-    import {Pt} from 'pts/dist/es5'; // use ES5
-    ```
-    The next version of create-react-app may support ES6 build directly.
-
+Download or clone this repo and then run `yarn install`. Once installed, run:
+ - `yarn start` to run in localhost
+ - `yarn build` to make a build.
 
 
 ## Create your own
 
-To start with a neutrino project from scratch, try these steps:
+To start with a React project from scratch, try these steps:
  
 1. Install create-react-app
     ```bash
@@ -37,9 +28,9 @@ To start with a neutrino project from scratch, try these steps:
     npx create-react-app my-app
     cd my-app
     ```
-3. Install Pts and you are ready to go.
+3. Install PtsCanvas
     ```bash
-    yarn add pts
+    npm install react-pts-canvas
     ```
+4. Take a look at the [guided demo components](https://williamngan.github.io/pts-react-example/build/) and their source code.
 
-Take a look at [create-react-app repo](https://github.com/facebook/create-react-app) for additional details.
