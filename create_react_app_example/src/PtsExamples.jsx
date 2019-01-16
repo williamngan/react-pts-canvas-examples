@@ -1,6 +1,6 @@
 // For ES5 builds, import from 'pts/dist/es5'. For ES6 or custom builds, import from 'pts'.
 import {Pt, Group, Line, Create} from 'pts/dist/es5';
-import PtsCanvas from "./PtsCanvas";
+import PtsCanvas from "react-pts-canvas";
 
 
 /**

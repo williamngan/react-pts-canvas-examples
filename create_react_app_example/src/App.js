@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import PtsCanvas from "./PtsCanvas"
+import PtsCanvas from "react-pts-canvas";
 import {ChartExample, AnimationExample} from './PtsExamples';
 import './App.css';
 import './highlight-github.css';
@@ -63,17 +63,17 @@ export default class App extends Component {
           <div><PtsCanvas /></div>
           <div>
             <h3>PtsCanvas</h3>
-            <p>PtsCanvas is a basic implementation of Pts in a React component.</p>
+            <p><a href="https://www.npmjs.com/package/react-pts-canvas">PtsCanvas</a> is a basic implementation of Pts in a React component. Install it via <code>npm install react-pts-canvas</code>.</p>
             <p>A quick way to build your own Pts component is to extend the PtsCanvas class, and then override the <code>animate</code> function (and optionally <code>start</code>, <code>action</code>, and <code>resize</code> functions.)</p>
             <Highlight className="xml">{`<PtsCanvas />`}</Highlight>
             <p>Default properties: </p>
             <Highlight className="js">
 {`{
-  name: "pt",
+  name: "pts-react",
   background: "#9ab",
   resize: true,
   retina: true,
-  loop: true
+  play: true
 }`}          
           </Highlight>
           <p><a href="https://github.com/williamngan/pts-react-example/blob/master/src/PtsCanvas.jsx">Source Code</a></p>
@@ -101,7 +101,7 @@ export default class App extends Component {
         </div>
 
         <div className="row">
-          <div><ChartExample name="pts_chart" background="#0c9" loop={false} data={this.chartData} variance={this.state.variance} /></div>
+          <div><ChartExample name="pts_chart" background="#0c9" play={false} data={this.chartData} variance={this.state.variance} /></div>
           <div>
             <h3>ChartExample Component</h3>
             <p>You can also use Pts to build a custom visualization component. The following example draws a bell curve on canvas. Change the variance property to update the visualization:</p>
@@ -109,7 +109,7 @@ export default class App extends Component {
             <Highlight className="xml">
 {`<ChartExample 
     name="pts_chart" 
-    background="#0c9" loop={false} 
+    background="#0c9" play={false} 
     data={this.chartData} 
     variance={this.state.variance} 
 />`}
