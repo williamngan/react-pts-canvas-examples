@@ -19,13 +19,6 @@ To get started, take a look at the README in [create_react_app_example](create_r
 
 
 
-## Using Pts with neutrino.js
-[`neutrino.js`](https://neutrinojs.org/) is a new companion tool by Mozilla that can help you scaffold React, Vue, and other web and node projects
-
-To get started, take a look at the README in [neutrino_example](neutrino_example) folder.
-
-
-
 ## Quick Start
 If you just want to try out Pts, there's no need to install and build. Try out the [online demo editor](https://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
 
@@ -33,13 +26,19 @@ If you just want to try out Pts, there's no need to install and build. Try out t
 
 ## Technical notes
 
-Pts is an javascript es6 library that targets modern browsers. You can import a class like this:
+For common use cases, you can extend `PtsCanvas` and use it in your React app.
+
+```javascript
+import PtsCanvas from "react-pts-canvas";
+```
+
+If you need to use Pts in some other ways, you can import a class like this:
 
 ```javascript
 import {Pt} from "pts"; // use ES6
 ```
 
-Pts also provides an ES5 version for use in older builds. To use ES5, import a class like this:
+Note that Pts is an javascript es6 library that targets modern browsers. It also provides an ES5 version for use in older builds. To use ES5, import a class like this:
 
 ```javascript
 import {Pt} from "pts/dist/es5"; // use ES5
