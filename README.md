@@ -2,9 +2,7 @@
 
 [Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
 
-This repo provides two examples of using Pts in React components: 
-1. with `create-react-app` 
-2. with `neutrino.js`.
+This repo provides an example of using Pts in React via [PtsCanvas](https://www.npmjs.com/package/react-pts-canvas) component. 
 
 Let's take a look at [the demo](https://williamngan.github.io/pts-react-example/build/) first before we start.
 
