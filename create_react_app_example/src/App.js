@@ -76,7 +76,7 @@ export default class App extends Component {
   play: true
 }`}          
           </Highlight>
-          <p><a href="https://github.com/williamngan/react-pts-canvas" target="_blank">See react-pts-canvas repo</a></p>
+          <p><a href="https://github.com/williamngan/react-pts-canvas" target="react_pts_canvas_repo">See react-pts-canvas repo</a></p>
           </div>
         </div>
 
