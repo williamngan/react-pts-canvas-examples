@@ -1,5 +1,5 @@
 // For ES5 builds, import from 'pts/dist/es5'. For ES6 or custom builds, import from 'pts'.
-import {Pt, Group, Line, Create} from 'pts/dist/es5';
+import {Pt, Group, Line, Create, Sound, Triangle, Const, Geom} from 'pts/dist/es5';
 import PtsCanvas from "react-pts-canvas";
 
 
@@ -108,3 +108,57 @@ export class AnimationExample extends PtsCanvas {
   }
 
 }
+
+
+/**
+ * Sound example component, which extends PtsCanvas
+ */
+export class SoundExample extends PtsCanvas {
+
+  sound;
+  bins = 256;
+
+  constructor(props) {
+    super(props);
+
+    Sound.load( props.file ).then( s => {
+      this.sound = s.analyze( this.bins );
+    }).catch( e => console.error(e) );
+
+  }
+
+  // Override PtsCanvas' animate function
+  animate(time, ftime) {
+    
+    if (this.sound && this.sound.playable) {
+      let colors = ["#f06", "#62e", "#fff", "#fe3", "#0c9"];
+
+      this.sound.freqDomainTo(this.space.size).forEach( (t, i) => {
+        this.form.fillOnly( colors[i%5] ).point( t, 30 );
+      });
+
+      this.form.fillOnly("rgba(0,0,0,.3").text( [20, this.space.size.y-20], this.props.credit );
+    }
+
+    this.drawButton();
+  }
+
+  // Override PtsCanvas' action function
+  action(type, x, y) {
+    if (type === "up" &&  Geom.withinBound( [x,y], [0,0], [50,50] )) { // clicked button
+      this.sound.toggle();
+    }
+  }
+  
+  drawButton() {
+    if (!this.sound || !this.sound.playing) {
+      this.form.fillOnly("#f06").rect( [[0,0], [50,50]] );
+      this.form.fillOnly('#fff').polygon( Triangle.fromCenter( [25,25], 10 ).rotate2D( Const.half_pi, [25,25] ) );
+    } else {
+      this.form.fillOnly("rgba(0,0,0,.2)").rect( [[0,0], [50,50]] );
+      this.form.fillOnly("#fff").rect( [[18, 18], [32,32]] );
+    }
+  }
+
+}
+

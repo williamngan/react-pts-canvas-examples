@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import PtsCanvas from "react-pts-canvas";
-import {ChartExample, AnimationExample} from './PtsExamples';
+import {ChartExample, AnimationExample, SoundExample} from './PtsExamples';
 import './App.css';
 import './highlight-github.css';
 import Highlight from 'react-highlight'
@@ -56,7 +56,6 @@ export default class App extends Component {
             Here are a few examples to help you get started.
           </h2>
 
-          <p>Note that Pts is an ES6 library, and for production (minified) build you'll need to set up custom build steps. Hopefully <a href="https://github.com/facebook/create-react-app/issues/4421" target="pts">this issue</a> should be fixed in the next release of React.</p>
         </div>
       
         <div className="row">
@@ -112,6 +111,24 @@ export default class App extends Component {
     background="#0c9" play={false} 
     data={this.chartData} 
     variance={this.state.variance} 
+/>`}
+            </Highlight>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/create_react_app_example/src/PtsExamples.jsx#L116">Source Code</a></p>
+          </div>
+        </div>
+
+        <div className="row">
+          <div><SoundExample name="pts_sound" background="#0cf" file="spacetravel.mp3" credit="Music: Space Travel Cliché by MrGreenH" play={true} /></div>
+          <div>
+            <h3>SoundExample Component</h3>
+            <p>And how about making a fun sound visualization? Here's an example. Look at the source code to see how simple it is!</p>
+            <Highlight className="xml">
+{`<SoundExample 
+    name="pts_sound" 
+    background="#0cf" 
+    file="spacetravel.mp3"
+    credit="Music: Space Travel Cliché by MrGreenH"
+    play={true}
 />`}
             </Highlight>
             <p><a href="https://github.com/williamngan/pts-react-example/blob/master/create_react_app_example/src/PtsExamples.jsx#L9">Source Code</a></p>

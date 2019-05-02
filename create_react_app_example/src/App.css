@@ -64,7 +64,7 @@ p code, h5 code {
   position: relative;
 }
 
-.App .pts_chart, .App .pts_anim, .App .pts-react {
+.App .pts_chart, .App .pts_anim, .App .pts-react, .App .pts_sound {
   height: 400px;
 }
 
