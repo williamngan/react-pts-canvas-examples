@@ -112,25 +112,42 @@ export class AnimationExample extends PtsCanvas {
 
 /**
  * Sound example component, which extends PtsCanvas
+ * This version uses `Sound.loadAsBuffer` to support Safari/iOS
+ * If you don't need Safari/iOS support for now, use `Sound.load` which is simpler
+ * See https://ptsjs.org/demo/edit/?name=guide.sound_simple
  */
 export class SoundExample extends PtsCanvas {
 
   sound;
   bins = 256;
+  bufferLoaded = false;
 
   constructor(props) {
     super(props);
 
-    Sound.load( props.file ).then( s => {
-      this.sound = s.analyze( this.bins );
+    Sound.loadAsBuffer( "spacetravel.mp3" ).then( s => {
+      this.sound = s;
+      this.space.playOnce(50); // render for noce
+      this.bufferLoaded = true;
     }).catch( e => console.error(e) );
+  }
 
+  toggle() {
+    if (this.sound.playing || !this.bufferLoaded) {
+      this.sound.stop();
+    } else {
+      this.sound.createBuffer().analyze(this.bins); // recreate buffer again
+      this.sound.start();
+      this.space.replay();
+    }
   }
 
   // Override PtsCanvas' animate function
   animate(time, ftime) {
     
     if (this.sound && this.sound.playable) {
+      if (!this.sound.playing) this.space.stop(); // stop animation if not playing
+      
       let colors = ["#f06", "#62e", "#fff", "#fe3", "#0c9"];
 
       this.sound.freqDomainTo(this.space.size).forEach( (t, i) => {
@@ -146,11 +163,15 @@ export class SoundExample extends PtsCanvas {
   // Override PtsCanvas' action function
   action(type, x, y) {
     if (type === "up" &&  Geom.withinBound( [x,y], [0,0], [50,50] )) { // clicked button
-      this.sound.toggle();
+      this.toggle();
     }
   }
   
   drawButton() {
+    if (!this.bufferLoaded) {
+      this.form.fillOnly("#9ab").text( [20,30], "Loading..." );
+      return;
+    }
     if (!this.sound || !this.sound.playing) {
       this.form.fillOnly("#f06").rect( [[0,0], [50,50]] );
       this.form.fillOnly('#fff').polygon( Triangle.fromCenter( [25,25], 10 ).rotate2D( Const.half_pi, [25,25] ) );
