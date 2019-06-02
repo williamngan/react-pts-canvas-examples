@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import PtsCanvas from "react-pts-canvas";
+import {QuickStartCanvas} from "react-pts-canvas";
 import {ChartExample, AnimationExample, SoundExample} from './PtsExamples';
+import {Util, Line} from 'pts';
 import './App.css';
 import './highlight-github.css';
 import Highlight from 'react-highlight'
@@ -52,19 +53,30 @@ export default class App extends Component {
           
           <h2>
             <a href="https://ptsjs.org" target="pts">Pts</a> is a library for visualization and creative-coding. 
-            You can incorporate it into React to create canvas animations and other fun things.
+            You can use it in <a href="https://www.npmjs.com/package/react-pts-canvas">React component</a> to create canvas animations and other fun things.
             Here are a few examples to help you get started.
           </h2>
 
         </div>
       
         <div className="row">
-          <div><PtsCanvas /></div>
+          <div><QuickStartCanvas onAnimate={(space, form, time) => {
+            let subs = space.innerBound.map( p => Line.subpoints( [p, space.pointer], 30 ) );
+            form.strokeOnly("#FDC", 2).rects( Util.zip( subs ) );
+          }} /></div>
           <div>
-            <h3>PtsCanvas</h3>
-            <p><a href="https://www.npmjs.com/package/react-pts-canvas">PtsCanvas</a> is a basic implementation of Pts in a React component. Install it via <code>npm install react-pts-canvas</code>.</p>
-            <p>A quick way to build your own Pts component is to extend the PtsCanvas class, and then override the <code>animate</code> function (and optionally <code>start</code>, <code>action</code>, and <code>resize</code> functions.)</p>
-            <Highlight className="xml">{`<PtsCanvas />`}</Highlight>
+            <h3>QuickStartCanvas</h3>
+            <p><a href="https://www.npmjs.com/package/react-pts-canvas">QuickStartCanvas</a> is a basic implementation of <a href="https://ptsjs.org">Pts</a> in a React component. Install it via <code>npm install react-pts-canvas</code>.</p>
+            <p>Create canvas drawings using its callback function props <code>onAnimate</code>, <code>onStart</code>, <code>onAction</code>, and <code>onResize</code>. 
+            (<a href="https://github.com/williamngan/react-pts-canvas/blob/master/README.md#quickstartcanvas-component">Docs</a>)</p>
+            <Highlight className="xml">{`
+<QuickStartCanvas onAnimate={ (space, form, time) => {
+  let subs = space.innerBound.map( 
+    p => Line.subpoints( [p, space.pointer], 30 ) 
+  );
+  form.strokeOnly("#FDC", 2).rects( Util.zip( subs ) );
+}} />
+            `}</Highlight>
             <p>Default properties: </p>
             <Highlight className="js">
 {`{
@@ -83,8 +95,8 @@ export default class App extends Component {
         <div className="row">
           <div><AnimationExample name="pts_anim" background="#fe3" pause={this.state.pauseAnimation} /></div>
           <div>
-            <h3>AnimationExample Component</h3>
-            <p>A component that renders a continuous noise pattern. (Might be good as a fancy loading animation.)</p>
+            <h3>AnimationExample with PtsCanvas</h3>
+            <p><a href="https://github.com/williamngan/react-pts-canvas/blob/master/README.md#ptscanvas">PtsCanvas</a> is a base component which you can extend to make it your own. This example component renders a continuous noise pattern.</p>
             <p>Hover over the canvas to change the animation, and toggle Play/Pause by clicking this button: </p>
             <p><button onClick={this.handleClick.bind(this)}>{this.state.pauseAnimation ? "Play" : "Pause"}</button></p>
             <Highlight className="xml">
@@ -102,7 +114,7 @@ export default class App extends Component {
         <div className="row">
           <div><ChartExample name="pts_chart" background="#0c9" play={false} data={this.chartData} variance={this.state.variance} /></div>
           <div>
-            <h3>ChartExample Component</h3>
+            <h3>ChartExample with PtsCanvas</h3>
             <p>You can also use Pts to build a custom visualization component. The following example draws a bell curve on canvas. Change the variance property to update the visualization:</p>
             <p><label>Variance: <input type="range" value={this.state.variance} min={0.05} max={5} step={0.05} onChange={this.handleChange.bind(this)} /></label> ({this.state.variance})</p>
             <Highlight className="xml">
@@ -120,7 +132,7 @@ export default class App extends Component {
         <div className="row">
           <div><SoundExample name="pts_sound" background="#0cf" file="spacetravel.mp3" credit="Music: Space Travel Cliché by MrGreenH" play={true} /></div>
           <div>
-            <h3>SoundExample Component</h3>
+            <h3>SoundExample with PtsCanvas</h3>
             <p>And how about making a fun sound visualization? Here's an example. Look at the source code to see how simple it is!</p>
             <Highlight className="xml">
 {`<SoundExample 
