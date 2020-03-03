@@ -6737,9 +6737,9 @@ psl@^1.1.24, psl@^1.1.28:
   version "1.1.31"
   resolved "https://registry.yarnpkg.com/psl/-/psl-1.1.31.tgz#e9aa86d0101b5b105cbe93ac6b784cd547276184"
 
-pts@^0.8.3:
-  version "0.8.3"
-  resolved "https://registry.yarnpkg.com/pts/-/pts-0.8.3.tgz#437cad8acb1b08099bb3a8b551ce34ccaa7202d2"
+pts@^0.9.0:
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/pts/-/pts-0.9.0.tgz#fffbc13a3fc3690eb76a678288032abbd9620823"
 
 public-encrypt@^4.0.0:
   version "4.0.3"
