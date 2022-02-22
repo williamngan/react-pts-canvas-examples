@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Pt, Group, Line, Create, Sound, Triangle, Const, Geom } from "pts";
 import { PtsCanvas } from "react-pts-canvas";
 
