@@ -1,8 +1,8 @@
 # pts-react-example
 
-[Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
+This repo provides an example of using Pts in React via [`react-pts-canvas`](https://www.npmjs.com/package/react-pts-canvas).
 
-This repo provides an example of using Pts in React via [PtsCanvas](https://www.npmjs.com/package/react-pts-canvas) component. 
+[Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
 
 Let's take a look at [the demo](https://williamngan.github.io/pts-react-example/build/) first before we start.
 
@@ -11,9 +11,9 @@ Let's take a look at [the demo](https://williamngan.github.io/pts-react-example/
 
 
 ## Using Pts with create-react-app
-[`create-react-app`](https://github.com/facebook/create-react-app) is a popular tool by Facebook to bootstrap a React application. 
+[`create-react-app`](https://create-react-app.dev/) is a popular tool by Facebook to bootstrap a React application. 
 
-To get started, take a look at the README in [create_react_app_example](create_react_app_example) folder.
+To get started, take a look at the README in [example](example) folder.
 
 
 
@@ -24,16 +24,21 @@ If you just want to try out Pts, there's no need to install and build. Try out t
 
 ## Technical notes
 
-For common use cases, you can extend `PtsCanvas` and use it in your React app.
+For common use cases, you can include `PtsCanvas` functional component in your own component. Take a look at `PtsExamples.jsx` for example components.
 
 ```javascript
-import PtsCanvas from "react-pts-canvas";
+import { PtsCanvas } from "react-pts-canvas";
 ```
 
-If you need to use Pts in some other ways, you can import a class like this:
+If needed, you can also use the legacy class component by extending `PtsCanvasLegacy`.
+
+For documentations, please refer to [`react-pts-canvas`](https://github.com/williamngan/react-pts-canvas) repo.
+
+
+If you need to use Pts, you can import a class like this:
 
 ```javascript
-import {Pt} from "pts"; // use ES6
+import {Pt, Create, Util} from "pts"; // use ES6
 ```
 
 Note that Pts is an javascript es6 library that targets modern browsers. It also provides an ES5 version for use in older builds. To use ES5, import a class like this:

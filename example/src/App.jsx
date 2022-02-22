@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AnimationExample, ChartExample } from "./PtsExamples";
+import { AnimationExample, ChartExample, SoundExample } from "./PtsExamples";
 import "./App.css";
 import "./highlight-github.css";
 import Highlight from "react-highlight";
@@ -153,6 +153,24 @@ export default function App(props) {
           </p>
         </div>
       </div>
+
+      <div className="row">
+          <div><SoundExample name="pts_sound" background="#0cf" file="spacetravel.mp3" credit="Music: Space Travel Cliché by MrGreenH" play={true} /></div>
+          <div>
+            <h3>SoundExample with PtsCanvas</h3>
+            <p>And how about making a fun sound visualization? Here's an example. Look at the source code to see how simple it is!</p>
+            <Highlight className="xml">
+{`<SoundExample 
+    name="pts_sound" 
+    background="#0cf" 
+    file="spacetravel.mp3"
+    credit="Music: Space Travel Cliché by MrGreenH"
+/>`}
+            </Highlight>
+            <p><a href="https://github.com/williamngan/pts-react-example/blob/master/create_react_app_example/src/PtsExamples.jsx#L9">Source Code</a></p>
+          </div>
+        </div>
+
     </div>
   );
 }

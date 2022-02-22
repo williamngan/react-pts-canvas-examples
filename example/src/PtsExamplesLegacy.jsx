@@ -127,7 +127,7 @@ export class SoundExample extends PtsCanvasLegacy {
 
     Sound.loadAsBuffer( "spacetravel.mp3" ).then( s => {
       this.sound = s;
-      this.space.playOnce(50); // render for noce
+      this.space.playOnce(50); // render for once
       this.bufferLoaded = true;
     }).catch( e => console.error(e) );
   }

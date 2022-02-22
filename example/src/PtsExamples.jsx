@@ -75,6 +75,10 @@ export const ChartExample = ({variance, background, name}) => {
 };
 
 
+/**
+ * Animation example component
+ * @returns 
+ */
 export const AnimationExample = ({name, background, play}) => {
   const noiseGrid = useRef([]);
 
@@ -104,4 +108,76 @@ export const AnimationExample = ({name, background, play}) => {
       onAnimate={handleAnimate}
     />
   );
+}
+
+/**
+ * Sound example component
+ * @returns 
+ */
+export const SoundExample = ({background, name, file, credit}) => {
+  const soundRef = useRef(null);
+  const bins = 256;
+
+  const handleStart = useCallback((bound, space) => {
+    Sound.loadAsBuffer( file ).then( s => {
+      soundRef.current = s;
+      space.playOnce(50); // render for once
+    }).catch( e => console.error(e) );
+  }, [file]);
+
+  const handleAnimate = useCallback( (space, form) => {
+    const sound = soundRef.current;
+    if (sound && sound.playable) {
+      if (!sound.playing) space.stop(); // stop animation if not playing
+      
+      const colors = ["#f06", "#62e", "#fff", "#fe3", "#0c9"];
+      sound.freqDomainTo(space.size).forEach( (t, i) => {
+        form.fillOnly( colors[i%5] ).point( t, 30 );
+      });
+      form.fillOnly("rgba(0,0,0,.3").text( [20, space.size.y-20], credit );
+    }
+
+    drawButton(form);
+  }, [credit]);
+
+  const handleAction = (space, form, type, x, y) => {
+    if (type === "up" && Geom.withinBound([x, y], [0, 0], [50, 50])) {
+      // clicked button
+      const sound = soundRef.current;
+      if (sound && sound.playing) {
+        sound.stop();
+      } else {
+        sound.createBuffer().analyze(bins); // recreate buffer again
+        sound.start();
+        space.replay();
+      }
+    }
+  };
+
+  const drawButton = (form) => {
+    const sound = soundRef.current;
+    if (!sound) {
+      form.fillOnly("#9ab").text( [20,30], "Loading..." );
+      return;
+    }
+    if (!sound || !sound.playing) {
+      form.fillOnly("#f06").rect( [[0,0], [50,50]] );
+      form.fillOnly('#fff').polygon( Triangle.fromCenter( [25,25], 10 ).rotate2D( Const.half_pi, [25,25] ) );
+    } else {
+      form.fillOnly("rgba(0,0,0,.2)").rect( [[0,0], [50,50]] );
+      form.fillOnly("#fff").rect( [[18, 18], [32,32]] );
+    }
+  }
+
+  
+  return (
+    <PtsCanvas
+      name={name}
+      background={background}
+      onStart={handleStart}
+      onAnimate={handleAnimate}
+      onAction={handleAction}
+    />
+  );
+
 }
