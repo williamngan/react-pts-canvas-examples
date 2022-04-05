@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { Pt, Group, Line, Create, Sound, Triangle, Const, Geom } from "pts";
 import { PtsCanvas } from "react-pts-canvas";
 
@@ -22,17 +22,13 @@ const mockData = function( v ) {
  */
 export const ChartExample = ({variance, background, name}) => {
 
-  const dataRef = useRef([]);
-
-  useEffect( () => {
-    dataRef.current = mockData(variance);
-  }, [variance])
+  // Given the data, distribute bars across the space's size
+  const data = useMemo( () => {
+    return mockData(variance);
+  }, [variance]);
 
   const handleAnimate = (space, form) => {
     if (!space || !form) return;
-
-    // Given the data, distribute bars across the space's size
-    const data = dataRef.current;
     
     let w = space.size.x / data.length;
     let bars = data.map((d, i) => {
@@ -80,31 +76,37 @@ export const ChartExample = ({variance, background, name}) => {
  * @returns 
  */
 export const AnimationExample = ({name, background, play}) => {
-  const noiseGrid = useRef([]);
+  const [noiseGrid, setNoiseGrid]  = useState([]);
 
-  const reset = (space) => {
+  const handleStart = useCallback((bound, space) => {
     const gd = Create.gridPts( space.innerBound, 20, 20 );
-    noiseGrid.current = Create.noisePts( gd, 0.05, 0.1, 20, 20 );
-  }
+    setNoiseGrid( Create.noisePts( gd, 0.05, 0.1, 20, 20 ) );
+  }, [setNoiseGrid]);
 
-  const handleAnimate = (space, form, time) => {
+  const handleAnimate = useCallback((space, form, time) => {
+    if (!space) return;
     // Use pointer position to change speed
     const speed = space.pointer.$subtract( space.center ).divide( space.center ).abs();
 
     // Generate noise in a grid
-    noiseGrid.current.forEach( (p) => {
+    noiseGrid.forEach( (p) => {
       p.step( 0.01*(1-speed.x), 0.01*(1-speed.y) );
       form.fillOnly("#123").point( p, Math.abs( p.noise2D() * space.size.x/18 ), "circle" );
     });
-  }
+  }, [noiseGrid]);
+
+  const handleResize = useCallback((space) => {
+    const gd = Create.gridPts( space.innerBound, 20, 20 );
+    setNoiseGrid( Create.noisePts( gd, 0.05, 0.1, 20, 20 ) );
+  }, [setNoiseGrid]);
 
   return (
     <PtsCanvas
       name={name}
       background={background}
       play={play}
-      onStart={(bound, space) => reset(space)}
-      onResize={reset}
+      onStart={handleStart}
+      onResize={handleResize}
       onAnimate={handleAnimate}
     />
   );
@@ -115,18 +117,19 @@ export const AnimationExample = ({name, background, play}) => {
  * @returns 
  */
 export const SoundExample = ({background, name, file, credit}) => {
-  const soundRef = useRef(null);
+  // const soundRef = useRef(null);
+  const [sound, setSound] = useState(null);
   const bins = 256;
 
   const handleStart = useCallback((bound, space) => {
     Sound.loadAsBuffer( file ).then( s => {
-      soundRef.current = s;
+      setSound(s);
       space.playOnce(50); // render for once
     }).catch( e => console.error(e) );
   }, [file]);
 
+
   const handleAnimate = useCallback( (space, form) => {
-    const sound = soundRef.current;
     if (sound && sound.playable) {
       if (!sound.playing) space.stop(); // stop animation if not playing
       
@@ -137,25 +140,7 @@ export const SoundExample = ({background, name, file, credit}) => {
       form.fillOnly("rgba(0,0,0,.3").text( [20, space.size.y-20], credit );
     }
 
-    drawButton(form);
-  }, [credit]);
-
-  const handleAction = (space, form, type, x, y) => {
-    if (type === "up" && Geom.withinBound([x, y], [0, 0], [50, 50])) {
-      // clicked button
-      const sound = soundRef.current;
-      if (sound && sound.playing) {
-        sound.stop();
-      } else {
-        sound.createBuffer().analyze(bins); // recreate buffer again
-        sound.start();
-        space.replay();
-      }
-    }
-  };
-
-  const drawButton = (form) => {
-    const sound = soundRef.current;
+    // Draw button
     if (!sound) {
       form.fillOnly("#9ab").text( [20,30], "Loading..." );
       return;
@@ -167,9 +152,22 @@ export const SoundExample = ({background, name, file, credit}) => {
       form.fillOnly("rgba(0,0,0,.2)").rect( [[0,0], [50,50]] );
       form.fillOnly("#fff").rect( [[18, 18], [32,32]] );
     }
-  }
+  }, [sound, credit]);
 
-  
+
+  const handleAction = (space, form, type, x, y) => {
+    if (type === "up" && Geom.withinBound([x, y], [0, 0], [50, 50])) {
+      // clicked button
+      if (sound && sound.playing) {
+        sound.stop();
+      } else {
+        sound.createBuffer().analyze(bins); // recreate buffer again
+        sound.start();
+        space.replay();
+      }
+    }
+  };
+
   return (
     <PtsCanvas
       name={name}

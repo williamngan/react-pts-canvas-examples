@@ -155,7 +155,7 @@ export default function App(props) {
       </div>
 
       <div className="row">
-          <div><SoundExample name="pts_sound" background="#0cf" file="spacetravel.mp3" credit="Music: Space Travel Cliché by MrGreenH" play={true} /></div>
+          <div><SoundExample name="pts_sound" background="#0cf" file="spacetravel.mp3" credit="Music: Space Travel Cliché by @MrGreenH" play={true} /></div>
           <div>
             <h3>SoundExample with PtsCanvas</h3>
             <p>And how about making a fun sound visualization? Here's an example. Look at the source code to see how simple it is!</p>
