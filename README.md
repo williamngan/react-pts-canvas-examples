@@ -4,7 +4,7 @@ This repo provides an example of using Pts in React via [`react-pts-canvas`](htt
 
 [Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
 
-Let's take a look at [the demo](https://williamngan.github.io/pts-react-example/build/) first before we start.
+Let's take a look at [the demo](https://williamngan.github.io/react-pts-canvas-examples/build/) first before we start.
 
 ![screenshot](./screenshot.png)
 
