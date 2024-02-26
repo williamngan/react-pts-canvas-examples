@@ -1,6 +1,8 @@
 # pts-react-example
 
-This repo provides an example of using Pts in React via [`react-pts-canvas`](https://www.npmjs.com/package/react-pts-canvas).
+This repo provides an example of using [react-pts-canvas](https://github.com/williamngan/react-pts-canvas) with [Vite](https://vitejs.dev/). The example code will also work with [create-react-app](https://create-react-app.dev/) if you prefer it over Vite.
+
+please refer to documentations in [`react-pts-canvas`](https://github.com/williamngan/react-pts-canvas) repo for details.
 
 [Pts](https://github.com/williamngan/pts) is a typescript/javascript library for visualization and creative-coding. Get started at [ptsjs.org](https://ptsjs.org).
 
@@ -9,17 +11,8 @@ Let's take a look at [the demo](https://williamngan.github.io/react-pts-canvas-e
 ![screenshot](./screenshot.png)
 
 
-
-## Using Pts with create-react-app
-[`create-react-app`](https://create-react-app.dev/) is a popular tool by Facebook to bootstrap a React application. 
-
-To get started, take a look at the README in [example](example) folder.
-
-
-
 ## Quick Start
 If you just want to try out Pts, there's no need to install and build. Try out the [online demo editor](https://ptsjs.org/demo/edit/?name=polygon.convexHull) for quick experimentations.
-
 
 
 ## Technical notes
@@ -30,10 +23,7 @@ For common use cases, you can include `PtsCanvas` functional component in your o
 import { PtsCanvas } from "react-pts-canvas";
 ```
 
-If needed, you can also use the legacy class component by extending `PtsCanvasLegacy`.
-
-For documentations, please refer to [`react-pts-canvas`](https://github.com/williamngan/react-pts-canvas) repo.
-
+Legacy class component is deprecated in react-pts-canvas v0.4. If you still need it, use v0.3.x and take a look at the code in `legacy` folder. 
 
 If you need to use Pts, you can import a class like this:
 
