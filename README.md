@@ -1,3 +1,5 @@
+> # Deprecated: Please see [react-pts-canvas](https://github.com/williamngan/react-pts-canvas/) repo for the latest
+
 # pts-react-example
 
 This repo provides an example of using [react-pts-canvas](https://github.com/williamngan/react-pts-canvas) with [Vite](https://vitejs.dev/). The example code will also work with [create-react-app](https://create-react-app.dev/) if you prefer it over Vite.
